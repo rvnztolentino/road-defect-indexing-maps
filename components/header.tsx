@@ -1,0 +1,27 @@
+"use client"
+
+import { Menu } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+interface HeaderProps {
+  onMenuClick?: () => void
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
+  return (
+    <header className="flex items-center justify-between px-4 py-2 bg-black/90 text-white">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Toggle menu</span>
+        </Button>
+        <h1 className="text-lg font-semibold">Road Defect Mapping</h1>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" className="text-xs">
+          GitHub
+        </Button>
+      </div>
+    </header>
+  )
+}
