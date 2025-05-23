@@ -10,22 +10,21 @@ interface CloudStorageSettings {
 }
 
 export interface DefectMetadata {
-  timestamp: string
-  defect_counts: Record<string, number>
-  frame_counts: Record<string, number>
-  location?: [number, number] // [latitude, longitude]
-  project_id?: string
-  region?: string
-  bucket?: string
-  folder_path?: string
-  bboxes?: Array<{
-    x1: number
-    y1: number
-    x2: number
-    y2: number
-    class?: string
-    confidence?: number
-  }>
+  GPSLocation: [number, number] // [latitude, longitude]
+  SeverityLevel: string // "Low", "Moderate", "High"
+  RealWorldArea: number // square meters
+  DefectPixelCount: number
+  TotalPixelCount: number
+  DistanceToObject: number // meters
+  ImageShape: [number, number, number] // [height, width, channels]
+  ProcessingTimestamp: string // ISO datetime
+  FuzzySeverity: number // 0-1
+  RepairProbability: number // 0-1
+  DefectCounts: Record<string, number> // { "pothole": 2, "crack": 1, ... }
+  AverageLength: number // cm
+  AverageWidth: number // cm
+  DefectRatio: number // defect pixels / bbox area
+  DominantDefectType: string
 }
 
 export interface DefectDetection {
@@ -33,7 +32,7 @@ export interface DefectDetection {
   name: string
   imageUrl: string
   metadata: DefectMetadata
-  location: [number, number]
+  location: [number, number] // [latitude, longitude]
 }
 
 class CloudStorage {
@@ -106,11 +105,11 @@ class CloudStorage {
   }
 
   /**
-   * List all detections in cloud storage
+   * List all JSON metadata files in cloud storage
    */
-  public async listDetections(): Promise<string[]> {
+  public async listMetadataFiles(): Promise<string[]> {
     if (!this.isInitialized) {
-      this.logger.warn("Cloud storage not initialized - cannot list detections")
+      this.logger.warn("Cloud storage not initialized - cannot list metadata files")
       return []
     }
 
@@ -119,14 +118,12 @@ class CloudStorage {
       const folderPath = this.settings.folderPath.replace(/\/$/, "")
       const [files] = await this.bucket.getFiles({ prefix: folderPath })
 
-      // Filter for image files
-      const detections = files
-        .filter((file: { name: string }) => file.name.endsWith(".jpg") || file.name.endsWith(".jpeg"))
-        .map((file: { name: any }) => file.name)
+      // Filter for JSON files
+      const metadataFiles = files.filter((file: { name: string }) => file.name.endsWith(".json")).map((file: { name: string }) => file.name)
 
-      return detections.sort().reverse() // Most recent first
+      return metadataFiles.sort().reverse() // Most recent first
     } catch (e) {
-      this.logger.error(`Error listing detections: ${e}`)
+      this.logger.error(`Error listing metadata files: ${e}`)
       return []
     }
   }
@@ -155,49 +152,26 @@ class CloudStorage {
   }
 
   /**
-   * Get metadata for a detection
+   * Get metadata from a JSON file
    */
-  public async getMetadata(blobName: string): Promise<DefectMetadata | null> {
+  public async getMetadata(jsonBlobName: string): Promise<DefectMetadata | null> {
     if (!this.isInitialized) {
       this.logger.warn("Cloud storage not initialized - cannot get metadata")
       return null
     }
 
     try {
-      // First, check if there's a corresponding JSON file
-      const jsonBlobName = blobName.replace(/\.(jpg|jpeg)$/, ".json")
       const jsonFile = this.bucket.file(jsonBlobName)
       const [jsonExists] = await jsonFile.exists()
 
-      if (jsonExists) {
-        // If JSON file exists, download and parse it
-        const [jsonContent] = await jsonFile.download()
-        return JSON.parse(jsonContent.toString())
-      } else {
-        // Otherwise, we'll need to extract EXIF data from the image
-        // This would typically be done with a library like ExifReader
-        // For this example, we'll return a placeholder with a note
-        this.logger.warn(`No JSON metadata file found for ${blobName}. EXIF extraction would be needed.`)
-
-        // Extract timestamp from filename (detection_YYYYMMDD_HHMMSS.jpg)
-        const timestampMatch = blobName.match(/detection_(\d{8}_\d{6})\.jpe?g/)
-        const timestamp = timestampMatch ? timestampMatch[1] : "unknown"
-
-        // Generate random location near Manila for demo purposes
-        const lat = 14.5995 + (Math.random() - 0.5) * 0.02
-        const lng = 120.9842 + (Math.random() - 0.5) * 0.02
-
-        return {
-          timestamp,
-          defect_counts: { pothole: Math.floor(Math.random() * 5) + 1 },
-          frame_counts: { total: 1 },
-          location: [lat, lng],
-          project_id: this.settings.projectId,
-          region: this.settings.region,
-          bucket: this.settings.bucketName,
-          folder_path: this.settings.folderPath,
-        }
+      if (!jsonExists) {
+        this.logger.warn(`JSON file not found: ${jsonBlobName}`)
+        return null
       }
+
+      // Download and parse JSON file
+      const [jsonContent] = await jsonFile.download()
+      return JSON.parse(jsonContent.toString())
     } catch (e) {
       this.logger.error(`Error getting metadata: ${e}`)
       return null
@@ -205,35 +179,41 @@ class CloudStorage {
   }
 
   /**
-   * Get all detections with metadata and signed URLs
+   * Get all defect detections with metadata and signed URLs
    */
-  public async getAllDetections(limit = 50): Promise<DefectDetection[]> {
+  public async getAllDetections(limit = 100): Promise<DefectDetection[]> {
     if (!this.isInitialized) {
       this.logger.warn("Cloud storage not initialized - cannot get detections")
       return []
     }
 
     try {
-      const blobNames = await this.listDetections()
-      const limitedBlobNames = blobNames.slice(0, limit)
+      const jsonBlobNames = await this.listMetadataFiles()
+      const limitedBlobNames = jsonBlobNames.slice(0, limit)
 
       const detections: DefectDetection[] = []
 
-      for (const blobName of limitedBlobNames) {
-        const imageUrl = await this.getSignedUrl(blobName)
-        const metadata = await this.getMetadata(blobName)
+      for (const jsonBlobName of limitedBlobNames) {
+        const metadata = await this.getMetadata(jsonBlobName)
 
-        if (metadata && metadata.location) {
+        if (metadata && metadata.GPSLocation) {
+          // Get corresponding image URL
+          const imageBlobName = jsonBlobName.replace(/\.json$/, ".jpg")
+          const imageUrl = await this.getSignedUrl(imageBlobName)
+
+          // Extract ID from filename
+          const id =
+            jsonBlobName
+              .split("/")
+              .pop()
+              ?.replace(/\.json$/, "") || ""
+
           detections.push({
-            id:
-              blobName
-                .split("/")
-                .pop()
-                ?.replace(/\.(jpg|jpeg)$/, "") || "",
-            name: blobName,
+            id,
+            name: jsonBlobName,
             imageUrl,
             metadata,
-            location: metadata.location,
+            location: metadata.GPSLocation,
           })
         }
       }

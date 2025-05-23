@@ -40,16 +40,28 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
     return () => clearInterval(interval)
   }, [])
 
-  // Format timestamp from YYYYMMDD_HHMMSS to readable format
-  const formatTimestamp = (timestamp: string): string => {
-    if (!timestamp || timestamp === "unknown") return "Unknown"
+  // Format ISO datetime to readable format
+  const formatDateTime = (isoString: string): string => {
+    try {
+      const date = new Date(isoString)
+      return date.toLocaleString()
+    } catch (e) {
+      return isoString
+    }
+  }
 
-    // Extract date and time parts
-    const match = timestamp.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/)
-    if (!match) return timestamp
-
-    const [_, year, month, day, hour, minute, second] = match
-    return `${year}-${month}-${day} ${hour}:${minute}:${second}`
+  // Get severity color class
+  const getSeverityColorClass = (severity: string): string => {
+    switch (severity) {
+      case "High":
+        return "text-red-500"
+      case "Moderate":
+        return "text-yellow-500"
+      case "Low":
+        return "text-green-500"
+      default:
+        return "text-blue-500"
+    }
   }
 
   return (
@@ -85,13 +97,20 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{defect.id}</p>
-                    <p className="text-xs text-muted-foreground">{formatTimestamp(defect.metadata.timestamp)}</p>
-                    <p className="text-xs">
-                      {Object.entries(defect.metadata.defect_counts)
-                        .map(([type, count]) => `${type}: ${count}`)
-                        .join(", ")}
+                    <div className="flex justify-between items-start">
+                      <p className="text-xs font-medium truncate">{defect.metadata.DominantDefectType}</p>
+                      <span className={`text-xs font-medium ${getSeverityColorClass(defect.metadata.SeverityLevel)}`}>
+                        {defect.metadata.SeverityLevel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(defect.metadata.ProcessingTimestamp)}
                     </p>
+                    <p className="text-xs">
+                      {Object.keys(defect.metadata.DefectCounts).length} defect types,
+                      {defect.metadata.RealWorldArea.toFixed(1)} m²
+                    </p>
+                    <p className="text-xs">Repair: {Math.round(defect.metadata.RepairProbability * 100)}%</p>
                   </div>
                 </div>
               </CardContent>

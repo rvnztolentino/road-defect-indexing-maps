@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,36 +14,78 @@ interface DefectsPanelProps {
   setSelectedDefectType: (type: string | null) => void
 }
 
-const defectTypes = [
-  {
-    id: "linear-crack",
-    name: "Linear Crack",
-    description: "Straight line cracks in the road surface",
-    image: "/images/linear-crack.png",
-  },
-  {
-    id: "alligator-crack",
-    name: "Alligator Crack",
-    description: "Interconnected cracks forming a pattern similar to alligator skin",
-    image: "/images/alligator-crack.png",
-  },
-  {
-    id: "pothole",
-    name: "Pothole",
-    description: "Bowl-shaped holes of various sizes in the road surface",
-    image: "/images/pothole.png",
-  },
-  {
-    id: "patch",
-    name: "Patch",
-    description: "Areas where previous repairs have been made",
-    image: "/images/patch.png",
-  },
-]
+interface DefectTypeInfo {
+  id: string
+  name: string
+  description: string
+  image: string
+}
 
 export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: DefectsPanelProps) {
   const [expandedDefect, setExpandedDefect] = useState<string | null>(null)
   const [selectedTab, setSelectedTab] = useState<"types" | "recent">("types")
+  const [defectTypes, setDefectTypes] = useState<DefectTypeInfo[]>([
+    {
+    id: "linear-crack",
+    name: "Linear Crack",
+    description: "Straight line cracks in the road surface",
+    image: "/images/linear-crack.png",
+    },
+    {
+      id: "alligator-crack",
+      name: "Alligator Crack",
+      description: "Interconnected cracks forming a pattern similar to alligator skin",
+      image: "/images/alligator-crack.png",
+    },
+    {
+      id: "pothole",
+      name: "Pothole",
+      description: "Bowl-shaped holes of various sizes in the road surface",
+      image: "/images/pothole.png",
+    },
+    {
+      id: "patch",
+      name: "Patch",
+      description: "Areas where previous repairs have been made",
+      image: "/images/patch.png",
+    },
+  ])
+
+  // Fetch available defect types from the API
+  useEffect(() => {
+    const fetchDefectTypes = async () => {
+      try {
+        const response = await fetch("/api/defects?limit=50")
+        const data = await response.json()
+
+        if (data.detections && data.detections.length > 0) {
+          // Extract unique defect types from the detections
+          const uniqueTypes = new Set<string>()
+          data.detections.forEach((detection: DefectDetection) => {
+            Object.keys(detection.metadata.DefectCounts).forEach((type) => {
+              uniqueTypes.add(type)
+            })
+            // Also add dominant defect type if not already included
+            uniqueTypes.add(detection.metadata.DominantDefectType)
+          })
+
+          // Create defect type info objects
+          const typeInfos: DefectTypeInfo[] = Array.from(uniqueTypes).map((type) => ({
+            id: type,
+            name: type.charAt(0).toUpperCase() + type.slice(1),
+            description: `${type.charAt(0).toUpperCase() + type.slice(1)} defects detected on the road surface`,
+            image: `/images/${type}.png`, // You might want to have actual images for each type
+          }))
+
+          setDefectTypes(typeInfos)
+        }
+      } catch (error) {
+        console.error("Error fetching defect types:", error)
+      }
+    }
+
+    fetchDefectTypes()
+  }, [])
 
   const toggleDefect = (defectId: string) => {
     if (expandedDefect === defectId) {
@@ -58,17 +100,8 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
   }
 
   const handleSelectDefect = (defect: DefectDetection) => {
-    // Find the defect type with the highest count
-    const defectType = Object.entries(defect.metadata.defect_counts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([type]) => type)[0]
-
-    if (defectType) {
-      setSelectedDefectType(defectType)
-    }
-
-    // You could also implement logic to fly to the defect location on the map
-    // This would require passing a callback to the parent component
+    // Select the dominant defect type
+    setSelectedDefectType(defect.metadata.DominantDefectType)
   }
 
   return (
@@ -131,7 +164,12 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
                         <span className="text-white font-semibold px-2 py-1 bg-red-500 rounded">{defect.name}</span>
                       </div>
-                      <Image src={defect.image || "/placeholder.svg"} alt={defect.name} fill className="object-cover" />
+                      <Image
+                        src={defect.image || "/placeholder.svg?height=192&width=256"}
+                        alt={defect.name}
+                        fill
+                        className="object-cover"
+                      />
                     </div>
                     <p className="text-sm text-muted-foreground mb-3">{defect.description}</p>
                     <Button

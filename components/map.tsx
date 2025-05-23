@@ -21,15 +21,35 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
   const [defects, setDefects] = useState<DefectDetection[]>([])
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({})
 
   // Fetch defects from API
   const fetchDefects = async () => {
     try {
-      const response = await fetch("/api/defects")
+      // If we have a lastUpdated timestamp, only fetch newer defects
+      const params = lastUpdated ? `?since=${lastUpdated.toISOString()}` : ""
+      const response = await fetch(`/api/defects${params}`)
       const data = await response.json()
 
       if (data.detections) {
-        setDefects(data.detections)
+        // If we're fetching updates, append new defects to existing ones
+        if (lastUpdated) {
+          setDefects((prev) => {
+            // Create a map of existing defects by ID for quick lookup
+            const existingDefectsMap = new Map(prev.map((d) => [d.id, d]))
+
+            // Add new defects and update existing ones
+            data.detections.forEach((detection: DefectDetection) => {
+              existingDefectsMap.set(detection.id, detection)
+            })
+
+            return Array.from(existingDefectsMap.values())
+          })
+        } else {
+          // Initial load
+          setDefects(data.detections)
+        }
+
         setLastUpdated(new Date())
       }
     } catch (error) {
@@ -56,14 +76,18 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
       // Fetch initial defects
       fetchDefects()
 
-      // Set up refresh interval (every 20 seconds)
-      refreshIntervalRef.current = setInterval(fetchDefects, 20000)
+      // Set up refresh interval (every 30 seconds)
+      refreshIntervalRef.current = setInterval(fetchDefects, 30000)
     })
 
     return () => {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current)
       }
+
+      // Clean up markers
+      Object.values(markersRef.current).forEach((marker) => marker.remove())
+
       map.current?.remove()
       map.current = null
     }
@@ -73,14 +97,10 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded() || defects.length === 0) return
 
-    // Remove existing markers
-    const existingMarkers = document.querySelectorAll(".mapboxgl-marker")
-    existingMarkers.forEach((marker) => marker.remove())
-
     // Filter defects based on selected filters
     const filteredDefects = defects.filter((defect) => {
       // Filter by defect type if selected
-      if (selectedDefectType && !Object.keys(defect.metadata.defect_counts).includes(selectedDefectType)) {
+      if (selectedDefectType && defect.metadata.DominantDefectType !== selectedDefectType) {
         return false
       }
 
@@ -90,27 +110,40 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
       return true
     })
 
-    // Add markers for each defect
+    // Track existing markers to remove those that are no longer needed
+    const currentMarkerIds = new Set<string>()
+
+    // Add or update markers for each defect
     filteredDefects.forEach((defect) => {
       if (!map.current) return
+
+      currentMarkerIds.add(defect.id)
+
+      // Check if marker already exists
+      if (markersRef.current[defect.id]) {
+        // Update marker position if needed
+        markersRef.current[defect.id].setLngLat([defect.location[1], defect.location[0]])
+        return
+      }
 
       // Create custom marker element
       const markerEl = document.createElement("div")
       markerEl.className = "defect-marker"
 
-      // Determine marker color based on highest severity defect
-      let markerColor = "#3b82f6" // Default blue
-
-      // Check if there are any severe defects (you can define your own severity logic)
-      const defectTypes = Object.keys(defect.metadata.defect_counts)
-      const totalDefects = Object.values(defect.metadata.defect_counts).reduce((sum, count) => sum + count, 0)
-
-      if (totalDefects > 5) {
-        markerColor = "#ef4444" // Red for severe
-      } else if (totalDefects > 2) {
-        markerColor = "#eab308" // Yellow for moderate
-      } else {
-        markerColor = "#22c55e" // Green for minor
+      // Determine marker color based on severity level
+      let markerColor
+      switch (defect.metadata.SeverityLevel) {
+        case "High":
+          markerColor = "#ef4444" // Red for high severity
+          break
+        case "Moderate":
+          markerColor = "#eab308" // Yellow for moderate severity
+          break
+        case "Low":
+          markerColor = "#22c55e" // Green for low severity
+          break
+        default:
+          markerColor = "#3b82f6" // Default blue
       }
 
       // Style the marker
@@ -123,18 +156,18 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
 
       // Create popup content
       const popupContent = document.createElement("div")
-      popupContent.className = "p-2"
+      popupContent.className = "p-3 max-w-xs"
 
       // Add image if available
       if (defect.imageUrl) {
         const imageContainer = document.createElement("div")
-        imageContainer.className = "mb-2"
+        imageContainer.className = "mb-3"
 
         const image = document.createElement("img")
         image.src = defect.imageUrl
         image.className = "w-full h-auto rounded"
-        image.style.maxWidth = "200px"
-        image.style.maxHeight = "150px"
+        image.style.maxWidth = "250px"
+        image.style.maxHeight = "180px"
         image.alt = "Defect image"
 
         imageContainer.appendChild(image)
@@ -143,42 +176,70 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
 
       // Add defect information
       const title = document.createElement("h3")
-      title.className = "font-semibold text-sm mb-1"
-      title.textContent = `Defect ID: ${defect.id}`
+      title.className = "font-semibold text-sm mb-2"
+      title.textContent = `${defect.metadata.DominantDefectType} (${defect.metadata.SeverityLevel})`
 
+      const infoContainer = document.createElement("div")
+      infoContainer.className = "space-y-1 text-xs"
+
+      // Add timestamp
       const timestamp = document.createElement("p")
-      timestamp.className = "text-xs mb-1"
-      timestamp.innerHTML = `<span class="font-medium">Timestamp:</span> ${formatTimestamp(defect.metadata.timestamp)}`
+      timestamp.innerHTML = `<span class="font-medium">Detected:</span> ${formatDateTime(defect.metadata.ProcessingTimestamp)}`
+      infoContainer.appendChild(timestamp)
 
+      // Add defect counts
       const defectsList = document.createElement("p")
-      defectsList.className = "text-xs"
-      defectsList.innerHTML = `<span class="font-medium">Defects:</span> ${formatDefectCounts(defect.metadata.defect_counts)}`
+      defectsList.innerHTML = `<span class="font-medium">Defects:</span> ${formatDefectCounts(defect.metadata.DefectCounts)}`
+      infoContainer.appendChild(defectsList)
+
+      // Add repair probability
+      const repairProb = document.createElement("p")
+      repairProb.innerHTML = `<span class="font-medium">Repair Probability:</span> ${Math.round(defect.metadata.RepairProbability * 100)}%`
+      infoContainer.appendChild(repairProb)
+
+      // Add dimensions
+      const dimensions = document.createElement("p")
+      dimensions.innerHTML = `<span class="font-medium">Size:</span> ${defect.metadata.AverageLength.toFixed(1)} × ${defect.metadata.AverageWidth.toFixed(1)} cm`
+      infoContainer.appendChild(dimensions)
+
+      // Add area
+      const area = document.createElement("p")
+      area.innerHTML = `<span class="font-medium">Area:</span> ${defect.metadata.RealWorldArea.toFixed(2)} m²`
+      infoContainer.appendChild(area)
 
       popupContent.appendChild(title)
-      popupContent.appendChild(timestamp)
-      popupContent.appendChild(defectsList)
+      popupContent.appendChild(infoContainer)
 
       // Create popup
       const popup = new mapboxgl.Popup({ offset: 25 }).setDOMContent(popupContent)
 
       // Add marker to map
-      new mapboxgl.Marker(markerEl)
+      const marker = new mapboxgl.Marker(markerEl)
         .setLngLat([defect.location[1], defect.location[0]]) // [longitude, latitude]
         .setPopup(popup)
         .addTo(map.current)
+
+      // Store marker reference
+      markersRef.current[defect.id] = marker
+    })
+
+    // Remove markers that are no longer in the filtered list
+    Object.keys(markersRef.current).forEach((id) => {
+      if (!currentMarkerIds.has(id)) {
+        markersRef.current[id].remove()
+        delete markersRef.current[id]
+      }
     })
   }, [defects, selectedDefectType, selectedRoadType])
 
-  // Format timestamp from YYYYMMDD_HHMMSS to readable format
-  const formatTimestamp = (timestamp: string): string => {
-    if (!timestamp || timestamp === "unknown") return "Unknown"
-
-    // Extract date and time parts
-    const match = timestamp.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/)
-    if (!match) return timestamp
-
-    const [_, year, month, day, hour, minute, second] = match
-    return `${year}-${month}-${day} ${hour}:${minute}:${second}`
+  // Format ISO datetime to readable format
+  const formatDateTime = (isoString: string): string => {
+    try {
+      const date = new Date(isoString)
+      return date.toLocaleString()
+    } catch (e) {
+      return isoString
+    }
   }
 
   // Format defect counts for display
@@ -190,18 +251,7 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
 
   // Format defect type for display
   const formatDefectType = (type: string): string => {
-    switch (type) {
-      case "linear-crack":
-        return "Linear Crack"
-      case "alligator-crack":
-        return "Alligator Crack"
-      case "pothole":
-        return "Pothole"
-      case "patch":
-        return "Patch"
-      default:
-        return type.charAt(0).toUpperCase() + type.slice(1)
-    }
+    return type.charAt(0).toUpperCase() + type.slice(1)
   }
 
   return (
@@ -214,14 +264,23 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
       <div ref={mapContainer} className="w-full h-full" />
 
       {/* Last updated indicator */}
-      {lastUpdated && (
-        <div className="absolute bottom-4 right-4 bg-white/90 dark:bg-gray-800/90 px-3 py-1 rounded-md text-xs shadow-md">
-          Last updated: {lastUpdated.toLocaleTimeString()}
-          <button className="ml-2 text-primary hover:text-primary/80" onClick={fetchDefects} title="Refresh data">
-            ↻
-          </button>
-        </div>
-      )}
+      <div className="absolute bottom-4 right-4 bg-white/90 dark:bg-gray-800/90 px-3 py-1 rounded-md text-xs shadow-md">
+        {lastUpdated ? (
+          <>
+            Last updated: {lastUpdated.toLocaleTimeString()}
+            <button className="ml-2 text-primary hover:text-primary/80" onClick={fetchDefects} title="Refresh data">
+              ↻
+            </button>
+          </>
+        ) : (
+          "Loading data..."
+        )}
+      </div>
+
+      {/* Defect count indicator */}
+      <div className="absolute top-4 right-4 bg-white/90 dark:bg-gray-800/90 px-3 py-1 rounded-md text-xs shadow-md">
+        {defects.length} defects detected
+      </div>
     </div>
   )
 }
