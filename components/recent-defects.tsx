@@ -89,11 +89,11 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
               <CardContent className="p-2">
                 <div className="flex gap-2">
                   <div className="relative w-16 h-16 rounded overflow-hidden flex-shrink-0">
-                    <Image
+                    <img
                       src={defect.imageUrl || "/placeholder.svg?height=64&width=64"}
                       alt="Defect"
-                      fill
-                      className="object-cover"
+                      className="object-cover w-full h-full"
+                      crossOrigin="anonymous"
                     />
                   </div>
                   <div className="flex-1 min-w-0">

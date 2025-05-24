@@ -119,6 +119,9 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
 
       currentMarkerIds.add(defect.id)
 
+      // Debug logging
+      console.log('Defect severity:', defect.metadata.SeverityLevel)
+
       // Check if marker already exists
       if (markersRef.current[defect.id]) {
         // Update marker position if needed
@@ -132,19 +135,22 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
 
       // Determine marker color based on severity level
       let markerColor
+      console.log('Processing severity level:', defect.metadata.SeverityLevel)
       switch (defect.metadata.SeverityLevel) {
         case "High":
           markerColor = "#ef4444" // Red for high severity
           break
         case "Moderate":
-          markerColor = "#eab308" // Yellow for moderate severity
+          markerColor = "#f97316" // Orange for moderate
           break
         case "Low":
           markerColor = "#22c55e" // Green for low severity
           break
         default:
           markerColor = "#3b82f6" // Default blue
+          console.log('Using default color for severity:', defect.metadata.SeverityLevel)
       }
+      console.log('Selected marker color:', markerColor)
 
       // Style the marker
       markerEl.style.width = "20px"
@@ -169,6 +175,7 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
         image.style.maxWidth = "250px"
         image.style.maxHeight = "180px"
         image.alt = "Defect image"
+        image.crossOrigin = "anonymous"
 
         imageContainer.appendChild(image)
         popupContent.appendChild(imageContainer)

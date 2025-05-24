@@ -11,6 +11,7 @@ interface ConfigStatus {
   googleCloudBucketName: boolean
   googleCloudRegion: boolean
   googleCloudFolderPath: boolean
+  googleCloudCredentials: boolean
 }
 
 export function ConfigDebug() {
@@ -22,7 +23,14 @@ export function ConfigDebug() {
     try {
       const response = await fetch("/api/config")
       const data = await response.json()
-      setConfigStatus(data.configStatus)
+
+      // Add credentials check
+      const credentialsStatus = {
+        ...data.configStatus,
+        googleCloudCredentials: !!process.env.GOOGLE_CLOUD_CREDENTIALS,
+      }
+
+      setConfigStatus(credentialsStatus)
     } catch (error) {
       console.error("Error checking config:", error)
     } finally {
@@ -70,6 +78,10 @@ export function ConfigDebug() {
             <div className="flex items-center justify-between">
               <span className="text-sm">Google Cloud Folder</span>
               {getStatusIcon(configStatus.googleCloudFolderPath)}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Google Cloud Credentials</span>
+              {getStatusIcon(configStatus.googleCloudCredentials)}
             </div>
           </div>
         ) : (

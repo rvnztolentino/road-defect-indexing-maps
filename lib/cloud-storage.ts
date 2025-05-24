@@ -1,6 +1,4 @@
 import { Storage } from "@google-cloud/storage"
-import path from "path"
-import fs from "fs"
 
 interface CloudStorageSettings {
   projectId: string
@@ -10,6 +8,7 @@ interface CloudStorageSettings {
 }
 
 export interface DefectMetadata {
+  [x: string]: any
   GPSLocation: [number, number] // [latitude, longitude]
   SeverityLevel: string // "Low", "Moderate", "High"
   RealWorldArea: number // square meters
@@ -58,48 +57,86 @@ class CloudStorage {
   }
 
   /**
-   * Initialize cloud storage client
+   * Initialize cloud storage client using credentials from environment variable
    */
   public initialize(): boolean {
     try {
-      // Check if credentials file exists
-      const credentialsPath = path.join(process.cwd(), "config", "credentials.json")
-      if (!fs.existsSync(credentialsPath)) {
-        this.logger.warn("Cloud storage not initialized - credentials file not found")
-        return false
-      }
-
       // Check if required settings are present
       if (!this.settings.projectId || !this.settings.bucketName) {
         this.logger.warn("Cloud storage not initialized - missing required settings")
+        this.logger.warn(`Project ID: ${this.settings.projectId}`)
+        this.logger.warn(`Bucket Name: ${this.settings.bucketName}`)
         return false
       }
 
-      // Initialize client
-      this.client = new Storage({
-        projectId: this.settings.projectId,
-        keyFilename: credentialsPath,
+      const path = require('path')
+      const keyPath = path.join(process.cwd(), 'google_key.json')
+      
+      this.logger.info(`Using credentials file at: ${keyPath}`)
+      
+      // Initialize client with keyFilename
+      this.client = new Storage({ 
+        projectId: this.settings.projectId, 
+        keyFilename: keyPath
       })
 
       // Get bucket
       this.bucket = this.client.bucket(this.settings.bucketName)
+      this.logger.info(`Attempting to connect to bucket: ${this.settings.bucketName}`)
 
-      // Verify bucket exists (this is async in Node.js, so we'll just log success)
-      this.bucket.exists().then((data: [boolean]) => {
-        const exists = data[0]
-        if (!exists) {
-          this.logger.warn(`Cloud storage not initialized - bucket ${this.settings.bucketName} does not exist`)
-          this.isInitialized = false
-        } else {
-          this.isInitialized = true
-          this.logger.info("Cloud storage initialized successfully")
-        }
-      })
+      // Test the connection
+      this.testConnection()
 
       return true
     } catch (e) {
-      this.logger.error(`Cloud storage not initialized: ${e}`)
+      this.logger.error(`Cloud storage initialization error: ${e}`)
+      if (e instanceof Error) {
+        this.logger.error(`Error details: ${e.message}`)
+        this.logger.error(`Error stack: ${e.stack}`)
+      }
       this.isInitialized = false
+      return false
+    }
+  }
+
+  /**
+   * Test the connection to verify authentication and bucket access
+   */
+  private async testConnection(): Promise<void> {
+    try {
+      if (!this.bucket) {
+        throw new Error("Bucket not initialized")
+      }
+
+      // Try to check if bucket exists
+      const [exists] = await this.bucket.exists()
+      if (!exists) {
+        this.logger.warn(`Cloud storage not initialized - bucket ${this.settings.bucketName} does not exist`)
+        this.isInitialized = false
+      } else {
+        this.isInitialized = true
+        this.logger.info("Cloud storage initialized successfully")
+      }
+    } catch (e) {
+      this.logger.error(`Cloud storage connection test failed: ${e}`)
+      this.isInitialized = false
+    }
+  }
+
+  /**
+   * Check if the storage is properly initialized
+   */
+  public async isReady(): Promise<boolean> {
+    if (!this.client || !this.bucket) {
+      return false
+    }
+
+    try {
+      // Test the connection
+      await this.testConnection()
+      return this.isInitialized
+    } catch (e) {
+      this.logger.error(`Storage readiness check failed: ${e}`)
       return false
     }
   }
@@ -108,19 +145,24 @@ class CloudStorage {
    * List all JSON metadata files in cloud storage
    */
   public async listMetadataFiles(): Promise<string[]> {
-    if (!this.isInitialized) {
-      this.logger.warn("Cloud storage not initialized - cannot list metadata files")
+    const isReady = await this.isReady()
+    if (!isReady) {
+      this.logger.warn("Cloud storage not ready - cannot list metadata files")
       return []
     }
 
     try {
       // List blobs in folder
       const folderPath = this.settings.folderPath.replace(/\/$/, "")
-      const [files] = await this.bucket.getFiles({ prefix: folderPath })
+      const [files] = await this.bucket.getFiles({
+        prefix: folderPath,
+        maxResults: 1000, // Limit to prevent timeout
+      })
 
       // Filter for JSON files
-      const metadataFiles = files.filter((file: { name: string }) => file.name.endsWith(".json")).map((file: { name: string }) => file.name)
+      const metadataFiles = files.filter((file: { name: string }) => file.name.endsWith(".json")).map((file: { name: any }) => file.name)
 
+      this.logger.info(`Found ${metadataFiles.length} metadata files`)
       return metadataFiles.sort().reverse() // Most recent first
     } catch (e) {
       this.logger.error(`Error listing metadata files: ${e}`)
@@ -132,8 +174,9 @@ class CloudStorage {
    * Get signed URL for a blob
    */
   public async getSignedUrl(blobName: string): Promise<string> {
-    if (!this.isInitialized) {
-      this.logger.warn("Cloud storage not initialized - cannot get signed URL")
+    const isReady = await this.isReady()
+    if (!isReady) {
+      this.logger.warn("Cloud storage not ready - cannot get signed URL")
       return ""
     }
 
@@ -146,7 +189,7 @@ class CloudStorage {
       })
       return url
     } catch (e) {
-      this.logger.error(`Error getting signed URL: ${e}`)
+      this.logger.error(`Error getting signed URL for ${blobName}: ${e}`)
       return ""
     }
   }
@@ -155,8 +198,9 @@ class CloudStorage {
    * Get metadata from a JSON file
    */
   public async getMetadata(jsonBlobName: string): Promise<DefectMetadata | null> {
-    if (!this.isInitialized) {
-      this.logger.warn("Cloud storage not initialized - cannot get metadata")
+    const isReady = await this.isReady()
+    if (!isReady) {
+      this.logger.warn("Cloud storage not ready - cannot get metadata")
       return null
     }
 
@@ -171,9 +215,17 @@ class CloudStorage {
 
       // Download and parse JSON file
       const [jsonContent] = await jsonFile.download()
-      return JSON.parse(jsonContent.toString())
+      const metadata = JSON.parse(jsonContent.toString())
+
+      // Validate that required fields exist
+      if (!metadata.GPSLocation || !Array.isArray(metadata.GPSLocation) || metadata.GPSLocation.length !== 2) {
+        this.logger.warn(`Invalid GPS location in ${jsonBlobName}`)
+        return null
+      }
+
+      return metadata
     } catch (e) {
-      this.logger.error(`Error getting metadata: ${e}`)
+      this.logger.error(`Error getting metadata from ${jsonBlobName}: ${e}`)
       return null
     }
   }
@@ -182,8 +234,9 @@ class CloudStorage {
    * Get all defect detections with metadata and signed URLs
    */
   public async getAllDetections(limit = 100): Promise<DefectDetection[]> {
-    if (!this.isInitialized) {
-      this.logger.warn("Cloud storage not initialized - cannot get detections")
+    const isReady = await this.isReady()
+    if (!isReady) {
+      this.logger.warn("Cloud storage not ready - cannot get detections")
       return []
     }
 
@@ -193,31 +246,48 @@ class CloudStorage {
 
       const detections: DefectDetection[] = []
 
-      for (const jsonBlobName of limitedBlobNames) {
-        const metadata = await this.getMetadata(jsonBlobName)
+      // Process files in batches to avoid overwhelming the API
+      const batchSize = 10
+      for (let i = 0; i < limitedBlobNames.length; i += batchSize) {
+        const batch = limitedBlobNames.slice(i, i + batchSize)
 
-        if (metadata && metadata.GPSLocation) {
-          // Get corresponding image URL
-          const imageBlobName = jsonBlobName.replace(/\.json$/, ".jpg")
-          const imageUrl = await this.getSignedUrl(imageBlobName)
+        const batchPromises = batch.map(async (jsonBlobName) => {
+          try {
+            const metadata = await this.getMetadata(jsonBlobName)
 
-          // Extract ID from filename
-          const id =
-            jsonBlobName
-              .split("/")
-              .pop()
-              ?.replace(/\.json$/, "") || ""
+            if (metadata && metadata.GPSLocation) {
+              // Get corresponding image URL
+              const imageBlobName = jsonBlobName.replace(/\.json$/, ".jpg")
+              const imageUrl = await this.getSignedUrl(imageBlobName)
 
-          detections.push({
-            id,
-            name: jsonBlobName,
-            imageUrl,
-            metadata,
-            location: metadata.GPSLocation,
-          })
-        }
+              // Extract ID from filename
+              const id =
+                jsonBlobName
+                  .split("/")
+                  .pop()
+                  ?.replace(/\.json$/, "") || ""
+
+              return {
+                id,
+                name: jsonBlobName,
+                imageUrl,
+                metadata,
+                location: metadata.GPSLocation,
+              }
+            }
+            return null
+          } catch (e) {
+            this.logger.error(`Error processing ${jsonBlobName}: ${e}`)
+            return null
+          }
+        })
+
+        const batchResults = await Promise.all(batchPromises)
+        const validDetections = batchResults.filter((detection): detection is DefectDetection => detection !== null)
+        detections.push(...validDetections)
       }
 
+      this.logger.info(`Successfully processed ${detections.length} detections`)
       return detections
     } catch (e) {
       this.logger.error(`Error getting all detections: ${e}`)

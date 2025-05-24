@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "chrome-reserve-457414-k5",
+  "private_key_id": "b950832982862bbecd8143fbc6849c0144d9069f",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCsZz/6e3N90z7F\nAUFAXkR85s1MprCdKHCWq/LOE+hnXGQcXI6ckcpn6/Mo5bm+ofafTOqrNc3cO2LB\nG1MI9g3H/We9z5ZZ/D0hTVEj0s2AO5UlnbWjq3S8ia1Ga7icpm/bkUqP5FzFzteI\n5qUEN10M0SPg9HnduYQQnEGqkjlg2WezTRVpP5nv9npsEpqm+5qBfYBSGSocMNCh\nwKqj8QZXbYW/yILVzYr9s2O4YBlGAMpLSMoRm0aJIFz3lp/RFNEmqL65jOFyv/UV\nAORXt+uaW4a7ZaNq0fqKYfbga/sRNhp1//Ypac9cSh4rD6qgRoh3LUy21SsLZuuv\nDNULXK/fAgMBAAECggEADO9OMIfUmWsg+XznnWG1N73FR2v2MkRXdiZ+eBGsTRz0\nceBL3tldW0CrpLTfo7rZGwiVTrUhtdVKynw3VaPIUunjP610dVnkaDw5yztEqctO\nnFzhxN7XSlH2CyOH3VDrcYjMFFGo2Dp1l1LerJtOwuhqDbWp8wW5L9nZX2fLIEXv\n6CRbJd9zKnugnBz5+p7S4NjdAkRXTtZ+ypjX8s2EcX7DfhoSgSjAuN6xxcet0wOR\n68YaQYbB9fXPC8KJRkMqlRjLPh2+zrQwASiZ2y9ZtyATUtgYkgvD4w9DoTo/aIGY\nHBP6mXxr8w4BXzG9GirNZqT1vP/MjT/AybeSfk8JEQKBgQDUfB6MDHqqqv09GV85\nqjhsLlQSTvYTs+fVoIF+Cj11e1GaVb04JJWvpaC+3T6F3LsKmPVNexwBqiLeKZxB\nUXsBFvRHku+gHxLSrOTA/W+wvFLIKG2t27WpP/H4NPTztGevey/GnhBMAs4bBh2N\nRDX+51hVAbH9GSg+8MW+JDG8OQKBgQDPtcnURVx94IAUx0tMLsEf3j0rak9qlgH7\n7+2qTUyEkm1mmvSCE5sznNP6KiQlx6T6TZSeFaMrAoKSPz1SbhWT3IGUul+QIPdK\nAnLtr4Am9Dl0BbJGkEpl3YLbtYUNkiwMqAbEDzozJVGBcRwqzA9Pb1M0Gq/UFLIM\nGbxhGcx81wKBgBXAgwwJNwGDsZrwnvvzPgVtFLQvGyfXMfN/k+IIQFRnhGoNPuqh\nbCVoCjWfxofDme4yzGHbKXnOJfWiQtm48qOg6u7sztUQeUfR5TUQfL+V989/vAKh\nTE6AOlATc8QDAt5G+RQXGEn/u4Ous5XDltd6bWN+Ye8sBR+0XDnj0KeZAoGAH7tJ\n5h/ijWhqqMH5gt3xqwisl6FaGJJqIy74Q/gjJG2qQO6TQ/vyzeO7jpA5jXv+fC61\n8aCkmMF9aRI4MAuZSEl7klkWmFIw9SGCpUUWct0EmfD010rb0swQXbhRZ01ZZWWW\nAwXAgmfFF91LzE34WM5NC7y399JhkO+tk7f5QWkCgYBZbZgcuvMR//ypho2TCjTO\nDMhxJEfnP+mTB5UHKSKdVVuO0pQoMNnXhExDiN/wOkIryRr2bNWd0qSdN+c98APA\nAx4JufOX4JQcsjZ4Mxmya1Rc0B1e4/7fF+6tffEU9Xq7sIYlvEKjWMXiwh9Al7yw\nt7Y17KWUh2KrlfdLlGl0zw==\n-----END PRIVATE KEY-----\n",
+  "client_email": "road-defect-detection-data@chrome-reserve-457414-k5.iam.gserviceaccount.com",
+  "client_id": "107831798208455488898",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/road-defect-detection-data%40chrome-reserve-457414-k5.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
