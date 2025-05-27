@@ -15,7 +15,6 @@ const MapComponent = dynamic(() => import("@/components/map"), {
 export default function Home() {
   const [selectedDefectType, setSelectedDefectType] = useState<string | null>(null)
   const [selectedRoadType, setSelectedRoadType] = useState<string | null>(null)
-  const [isLegendOpen, setIsLegendOpen] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
@@ -31,9 +30,6 @@ export default function Home() {
             setSelectedDefectType={setSelectedDefectType}
             selectedRoadType={selectedRoadType}
             setSelectedRoadType={setSelectedRoadType}
-            isLegendOpen={isLegendOpen}
-            setIsLegendOpen={setIsLegendOpen}
-            isSidebarOpen={isSidebarOpen}
             setIsSidebarOpen={setIsSidebarOpen}
           />
           {/* Close overlay for mobile */}

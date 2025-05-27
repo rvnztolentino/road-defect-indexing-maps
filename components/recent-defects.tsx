@@ -45,22 +45,31 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
     try {
       const date = new Date(isoString)
       return date.toLocaleString()
-    } catch (e) {
+    } catch (error) {
+      console.error("Error formatting date:", error)
       return isoString
     }
   }
 
   // Get severity color class
-  const getSeverityColorClass = (severity: string): string => {
-    switch (severity) {
-      case "High":
-        return "text-red-500"
-      case "Moderate":
-        return "text-yellow-500"
-      case "Low":
-        return "text-green-500"
-      default:
-        return "text-blue-500"
+  const getSeverityColorClass = (severity: number): string => {
+    if (severity >= 0.7) {
+      return "text-red-500"
+    } else if (severity >= 0.3) {
+      return "text-yellow-500"
+    } else {
+      return "text-green-500"
+    }
+  }
+
+  // Format severity level for display
+  const formatSeverityLevel = (severity: number): string => {
+    if (severity >= 0.7) {
+      return "High"
+    } else if (severity >= 0.3) {
+      return "Moderate"
+    } else {
+      return "Low"
     }
   }
 
@@ -79,7 +88,7 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
           {loading ? "Loading defects..." : "No recent defects found"}
         </div>
       ) : (
-        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+        <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
           {defects.map((defect) => (
             <Card
               key={defect.id}
@@ -89,18 +98,22 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
               <CardContent className="p-2">
                 <div className="flex gap-2">
                   <div className="relative w-16 h-16 rounded overflow-hidden flex-shrink-0">
-                    <img
+                    <Image
                       src={defect.imageUrl || "/placeholder.svg?height=64&width=64"}
                       alt="Defect"
-                      className="object-cover w-full h-full"
-                      crossOrigin="anonymous"
+                      fill
+                      className="object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg?height=64&width=64";
+                      }}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
                       <p className="text-xs font-medium truncate">{defect.metadata.DominantDefectType}</p>
                       <span className={`text-xs font-medium ${getSeverityColorClass(defect.metadata.SeverityLevel)}`}>
-                        {defect.metadata.SeverityLevel}
+                        {formatSeverityLevel(defect.metadata.SeverityLevel)}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -110,7 +123,7 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
                       {Object.keys(defect.metadata.DefectCounts).length} defect types,
                       {defect.metadata.RealWorldArea.toFixed(1)} m²
                     </p>
-                    <p className="text-xs">Repair: {Math.round(defect.metadata.RepairProbability * 100)}%</p>
+                    <p className="text-xs">Repair: {defect.metadata.RepairProbability === 1 ? "Yes" : "No"}</p>
                   </div>
                 </div>
               </CardContent>

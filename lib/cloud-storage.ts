@@ -1,4 +1,5 @@
-import { Storage } from "@google-cloud/storage"
+import { Storage, Bucket } from "@google-cloud/storage"
+import path from "path"
 
 interface CloudStorageSettings {
   projectId: string
@@ -8,9 +9,9 @@ interface CloudStorageSettings {
 }
 
 export interface DefectMetadata {
-  [x: string]: any
+  [x: string]: unknown
   GPSLocation: [number, number] // [latitude, longitude]
-  SeverityLevel: string // "Low", "Moderate", "High"
+  SeverityLevel: number // 0-1 float value
   RealWorldArea: number // square meters
   DefectPixelCount: number
   TotalPixelCount: number
@@ -34,10 +35,14 @@ export interface DefectDetection {
   location: [number, number] // [latitude, longitude]
 }
 
+interface StorageFile {
+  name: string
+}
+
 class CloudStorage {
   private logger: Console
   private client: Storage | null = null
-  private bucket: any = null
+  private bucket: Bucket | null = null
   private isInitialized = false
   private settings: CloudStorageSettings
 
@@ -69,7 +74,6 @@ class CloudStorage {
         return false
       }
 
-      const path = require('path')
       const keyPath = path.join(process.cwd(), 'google_key.json')
       
       this.logger.info(`Using credentials file at: ${keyPath}`)
@@ -146,7 +150,7 @@ class CloudStorage {
    */
   public async listMetadataFiles(): Promise<string[]> {
     const isReady = await this.isReady()
-    if (!isReady) {
+    if (!isReady || !this.bucket) {
       this.logger.warn("Cloud storage not ready - cannot list metadata files")
       return []
     }
@@ -160,7 +164,9 @@ class CloudStorage {
       })
 
       // Filter for JSON files
-      const metadataFiles = files.filter((file: { name: string }) => file.name.endsWith(".json")).map((file: { name: any }) => file.name)
+      const metadataFiles = files
+        .filter((file: StorageFile) => file.name.endsWith(".json"))
+        .map((file: StorageFile) => file.name)
 
       this.logger.info(`Found ${metadataFiles.length} metadata files`)
       return metadataFiles.sort().reverse() // Most recent first
@@ -175,7 +181,7 @@ class CloudStorage {
    */
   public async getSignedUrl(blobName: string): Promise<string> {
     const isReady = await this.isReady()
-    if (!isReady) {
+    if (!isReady || !this.bucket) {
       this.logger.warn("Cloud storage not ready - cannot get signed URL")
       return ""
     }
@@ -199,7 +205,7 @@ class CloudStorage {
    */
   public async getMetadata(jsonBlobName: string): Promise<DefectMetadata | null> {
     const isReady = await this.isReady()
-    if (!isReady) {
+    if (!isReady || !this.bucket) {
       this.logger.warn("Cloud storage not ready - cannot get metadata")
       return null
     }

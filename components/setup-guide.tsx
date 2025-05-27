@@ -63,7 +63,7 @@ export function SetupGuide() {
                 <div>
                   <strong>2. Grant Storage Permissions</strong>
                   <p className="text-muted-foreground">
-                    Assign the "Storage Object Admin" role to your service account
+                    Assign the &quot;Storage Object Admin&quot; role to your service account
                   </p>
                 </div>
               </div>

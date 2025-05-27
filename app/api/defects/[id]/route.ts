@@ -1,13 +1,21 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { cloudStorage } from "@/lib/cloud-storage"
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+type RouteContext = {
+  params: Promise<{ id: string }>
+}
+
+export async function GET(
+  request: NextRequest,
+  context: RouteContext
+) {
   try {
+    const params = await context.params
     const id = params.id
     const folderPath = process.env.GOOGLE_CLOUD_FOLDER_PATH || ""
-    const blobName = `${folderPath.replace(/\/$/, "")}/detection_${id}.jpg`
+    const blobName = `${folderPath.replace(/\/$/, "")}/detection_${id}.json`
 
-    const imageUrl = await cloudStorage.getSignedUrl(blobName)
+    const imageUrl = await cloudStorage.getSignedUrl(blobName.replace('.json', '.jpg'))
     const metadata = await cloudStorage.getMetadata(blobName)
 
     if (!metadata) {
@@ -19,7 +27,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       name: blobName,
       imageUrl,
       metadata,
-      location: metadata.location,
+      location: metadata.GPSLocation,
     })
   } catch (error) {
     console.error("Error fetching defect:", error)

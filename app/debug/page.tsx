@@ -7,8 +7,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
 
+interface GCSTestResponse {
+  success: boolean
+  message: string
+  error?: string
+  environment?: {
+    projectId: string
+    bucketName: string
+    region: string
+    folderPath: string
+  }
+  fileCount?: number
+  sampleFiles?: string[]
+  sampleDetection?: {
+    imageUrl: string
+    metadata?: {
+      GPSLocation?: [number, number]
+      SeverityLevel?: number
+    }
+  }
+  troubleshooting?: string[]
+}
+
 export default function DebugPage() {
-  const [gcsTest, setGcsTest] = useState<any>(null)
+  const [gcsTest, setGcsTest] = useState<GCSTestResponse | null>(null)
   const [loading, setLoading] = useState(false)
 
   const testGCS = async () => {

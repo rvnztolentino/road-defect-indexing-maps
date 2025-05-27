@@ -1,9 +1,14 @@
+"use client"
+
 export function LegendPanel() {
   return (
-    <div className="p-4 h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto flex flex-col">
+      <div className="p-4 flex-shrink-0">
       <h2 className="text-lg font-semibold mb-4">Legend</h2>
       <p className="text-sm text-muted-foreground mb-4">Understand the severity levels and map symbols</p>
+      </div>
 
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-medium mb-2">Severity Levels</h3>
@@ -42,6 +47,7 @@ export function LegendPanel() {
               <div className="w-4 h-4 rounded-full bg-white"></div>
               <span className="text-sm">Patch</span>
             </div>
+          </div>
           </div>
         </div>
       </div>

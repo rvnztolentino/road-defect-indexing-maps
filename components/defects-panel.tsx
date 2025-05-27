@@ -105,8 +105,9 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
   }
 
   return (
-    <div className="p-4 h-full overflow-y-auto flex flex-col">
-      <h2 className="text-lg font-semibold mb-2">Road Defects</h2>
+    <div className="h-full overflow-y-auto flex flex-col">
+      <div className="p-4 flex-shrink-0">
+      <h2 className="text-lg font-semibold mb-4">Road Defects</h2>
 
       <div className="flex border-b mb-4">
         <button
@@ -131,11 +132,14 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
         >
           Recent Defects
         </button>
+        </div>
       </div>
 
       {selectedTab === "types" ? (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground mb-4">Select a defect type to view details and filter the map</p>
+        <div className="space-y-3 px-4">
+          <p className="text-sm text-muted-foreground mb-4">
+              Select a defect type to view details and filter the map
+          </p>
 
           {defectTypes.map((defect) => (
             <Card
@@ -146,17 +150,23 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
               )}
             >
               <div
-                className="flex items-center justify-between p-3 cursor-pointer"
+                className="flex items-center justify-between px-4 pt-4 cursor-pointer"
                 onClick={() => toggleDefect(defect.id)}
               >
                 <h3 className="font-medium">{defect.name}</h3>
                 <ChevronDown
-                  className={cn("h-4 w-4 transition-transform", expandedDefect === defect.id && "transform rotate-180")}
+                  className={cn(
+                    "h-4 w-4 transition-transform",
+                    expandedDefect === defect.id && "transform rotate-180",
+                  )}
                 />
               </div>
 
               <div
-                className={cn("grid grid-rows-[0fr] transition-all", expandedDefect === defect.id && "grid-rows-[1fr]")}
+                className={cn(
+                  "grid grid-rows-[0fr] transition-all",
+                  expandedDefect === defect.id && "grid-rows-[1fr]",
+                )}
               >
                 <div className="overflow-hidden">
                   <CardContent className="p-3 pt-0">

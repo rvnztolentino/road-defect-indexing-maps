@@ -15,9 +15,6 @@ interface SidebarProps {
   setSelectedDefectType: (type: string | null) => void;
   selectedRoadType: string | null;
   setSelectedRoadType: (type: string | null) => void;
-  isLegendOpen: boolean;
-  setIsLegendOpen: (isOpen: boolean) => void;
-  isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
 }
 
@@ -26,9 +23,6 @@ export function Sidebar({
   setSelectedDefectType,
   selectedRoadType,
   setSelectedRoadType,
-  isLegendOpen,
-  setIsLegendOpen,
-  isSidebarOpen,
   setIsSidebarOpen,
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState("defects")
@@ -75,8 +69,8 @@ export function Sidebar({
       </div>
 
       {/* Desktop Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="hidden md:grid grid-cols-3 p-0 h-auto w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full">
+        <TabsList className="hidden md:grid grid-cols-3 w-auto h-auto flex-shrink-0">
           <TabsTrigger value="defects" className="flex items-center gap-1 py-3">
             <MapPin className="h-4 w-4" />
             <span>Defects</span>
@@ -91,15 +85,15 @@ export function Sidebar({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="defects" className="flex-1 p-0 m-0">
+        <TabsContent value="defects" className="flex-1 overflow-hidden p-0 m-0">
           <DefectsPanel selectedDefectType={selectedDefectType} setSelectedDefectType={setSelectedDefectType} />
         </TabsContent>
 
-        <TabsContent value="filters" className="flex-1 p-0 m-0">
+        <TabsContent value="filters" className="flex-1 overflow-hidden p-0 m-0">
           <FiltersPanel selectedRoadType={selectedRoadType} setSelectedRoadType={setSelectedRoadType} />
         </TabsContent>
 
-        <TabsContent value="legend" className="flex-1 p-0 m-0">
+        <TabsContent value="legend" className="flex-1 overflow-hidden p-0 m-0">
           <LegendPanel />
         </TabsContent>
       </Tabs>
