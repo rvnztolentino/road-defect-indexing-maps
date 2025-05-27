@@ -150,7 +150,7 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
               )}
             >
               <div
-                className="flex items-center justify-between px-4 pt-4 cursor-pointer"
+                className="flex items-center justify-between px-4 cursor-pointer"
                 onClick={() => toggleDefect(defect.id)}
               >
                 <h3 className="font-medium">{defect.name}</h3>

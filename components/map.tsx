@@ -114,7 +114,7 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       // Filter by defect type if selected
       if (selectedDefectType) {
         // Only show defects where the selected type is the dominant type
-        return defect.metadata.DominantDefectType === selectedDefectType;
+        return defect.metadata.DominantDefectType.toLowerCase() === selectedDefectType.toLowerCase();
       }
 
       return true;
