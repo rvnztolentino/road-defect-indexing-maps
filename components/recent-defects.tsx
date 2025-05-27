@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
 import Image from "next/image"
-import type { DefectDetection } from "@/lib/cloud-storage"
+import type { DefectDetection } from "@/lib/types"
 
 interface RecentDefectsProps {
   onSelectDefect?: (defect: DefectDetection) => void

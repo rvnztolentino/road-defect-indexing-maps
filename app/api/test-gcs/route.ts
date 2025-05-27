@@ -13,15 +13,16 @@ export async function GET() {
           message: "Google Cloud Storage is not ready",
           error: "Storage initialization failed or bucket is not accessible",
           environment: {
-            projectId: process.env.GOOGLE_PROJECT_ID ? "✓ Set" : "✗ Missing",
+            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID ? "✓ Set" : "✗ Missing",
             bucketName: process.env.GOOGLE_CLOUD_BUCKET_NAME ? "✓ Set" : "✗ Missing",
             region: process.env.GOOGLE_CLOUD_REGION ? "✓ Set" : "✗ Missing",
             folderPath: process.env.GOOGLE_CLOUD_FOLDER_PATH ? "✓ Set" : "✗ Missing",
+            credentials: process.env.GOOGLE_CLOUD_PRIVATE_KEY ? "✓ Set" : "✗ Missing",
           },
           troubleshooting: [
             "Verify that your Google Cloud project ID is correct",
             "Ensure the bucket name exists and is accessible",
-            "Make sure you're authenticated with Google Cloud (run 'gcloud auth application-default login')",
+            "Check that all Google Cloud credentials are set in environment variables",
             "Verify that the service account has the necessary permissions",
           ],
         },
@@ -57,10 +58,11 @@ export async function GET() {
       sampleFiles: metadataFiles.slice(0, 5),
       sampleDetection,
       environment: {
-        projectId: process.env.GOOGLE_PROJECT_ID ? "✓ Set" : "✗ Missing",
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID ? "✓ Set" : "✗ Missing",
         bucketName: process.env.GOOGLE_CLOUD_BUCKET_NAME ? "✓ Set" : "✗ Missing",
         region: process.env.GOOGLE_CLOUD_REGION ? "✓ Set" : "✗ Missing",
         folderPath: process.env.GOOGLE_CLOUD_FOLDER_PATH ? "✓ Set" : "✗ Missing",
+        credentials: process.env.GOOGLE_CLOUD_PRIVATE_KEY ? "✓ Set" : "✗ Missing",
       },
     })
   } catch (error) {
@@ -71,16 +73,17 @@ export async function GET() {
         message: "Google Cloud Storage connection failed",
         error: error instanceof Error ? error.message : "Unknown error",
         environment: {
-          projectId: process.env.GOOGLE_PROJECT_ID ? "✓ Set" : "✗ Missing",
+          projectId: process.env.GOOGLE_CLOUD_PROJECT_ID ? "✓ Set" : "✗ Missing",
           bucketName: process.env.GOOGLE_CLOUD_BUCKET_NAME ? "✓ Set" : "✗ Missing",
           region: process.env.GOOGLE_CLOUD_REGION ? "✓ Set" : "✗ Missing",
           folderPath: process.env.GOOGLE_CLOUD_FOLDER_PATH ? "✓ Set" : "✗ Missing",
+          credentials: process.env.GOOGLE_CLOUD_PRIVATE_KEY ? "✓ Set" : "✗ Missing",
         },
         troubleshooting: [
           "Check that all environment variables are set correctly",
           "Verify your Google Cloud project exists and is active",
           "Ensure the bucket exists in the specified project",
-          "Make sure you're authenticated with Google Cloud (run 'gcloud auth application-default login')",
+          "Make sure all Google Cloud credentials are properly set in environment variables",
         ],
       },
       { status: 500 },

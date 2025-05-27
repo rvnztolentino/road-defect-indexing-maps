@@ -16,6 +16,7 @@ interface GCSTestResponse {
     bucketName: string
     region: string
     folderPath: string
+    credentials: string
   }
   fileCount?: number
   sampleFiles?: string[]
@@ -85,6 +86,7 @@ export default function DebugPage() {
                         <div>Bucket Name: {gcsTest.environment.bucketName}</div>
                         <div>Region: {gcsTest.environment.region}</div>
                         <div>Folder Path: {gcsTest.environment.folderPath}</div>
+                        <div>Credentials: {gcsTest.environment.credentials}</div>
                       </div>
                     </div>
                   )}

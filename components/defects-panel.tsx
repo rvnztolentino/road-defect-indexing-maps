@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { RecentDefects } from "@/components/recent-defects"
-import type { DefectDetection } from "@/lib/cloud-storage"
+import type { DefectDetection } from "@/lib/types"
 
 interface DefectsPanelProps {
   selectedDefectType: string | null

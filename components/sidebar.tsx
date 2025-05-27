@@ -3,9 +3,8 @@
 import { useState } from "react"
 import { X } from 'lucide-react'; 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MapPin, Filter, Info, ChevronDown } from "lucide-react"
+import { MapPin, Info, ChevronDown } from "lucide-react"
 import { DefectsPanel } from "@/components/defects-panel"
-import { FiltersPanel } from "@/components/filters-panel"
 import { LegendPanel } from "@/components/legend-panel"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -13,16 +12,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 interface SidebarProps {
   selectedDefectType: string | null;
   setSelectedDefectType: (type: string | null) => void;
-  selectedRoadType: string | null;
-  setSelectedRoadType: (type: string | null) => void;
   setIsSidebarOpen: (isOpen: boolean) => void;
 }
 
 export function Sidebar({
   selectedDefectType,
   setSelectedDefectType,
-  selectedRoadType,
-  setSelectedRoadType,
   setIsSidebarOpen,
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState("defects")
@@ -30,7 +25,6 @@ export function Sidebar({
   // Menu labels for each tab
   const menuLabels = {
     defects: "Defects",
-    filters: "Filters",
     legend: "Legend",
   }
 
@@ -44,7 +38,6 @@ export function Sidebar({
             <Button variant="outline" className="w-full justify-between">
               <div className="flex items-center gap-2">
                 {activeTab === "defects" && <MapPin className="h-4 w-4" />}
-                {activeTab === "filters" && <Filter className="h-4 w-4" />}
                 {activeTab === "legend" && <Info className="h-4 w-4" />}
                 <span>{menuLabels[activeTab as keyof typeof menuLabels]}</span>
               </div>
@@ -56,10 +49,6 @@ export function Sidebar({
               <MapPin className="h-4 w-4" />
               <span>Defects</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setActiveTab("filters")} className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              <span>Filters</span>
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setActiveTab("legend")} className="flex items-center gap-2">
               <Info className="h-4 w-4" />
               <span>Legend</span>
@@ -70,14 +59,10 @@ export function Sidebar({
 
       {/* Desktop Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full">
-        <TabsList className="hidden md:grid grid-cols-3 w-auto h-auto flex-shrink-0">
+        <TabsList className="hidden md:grid grid-cols-2 w-auto h-auto flex-shrink-0">
           <TabsTrigger value="defects" className="flex items-center gap-1 py-3">
             <MapPin className="h-4 w-4" />
             <span>Defects</span>
-          </TabsTrigger>
-          <TabsTrigger value="filters" className="flex items-center gap-1 py-3">
-            <Filter className="h-4 w-4" />
-            <span>Filters</span>
           </TabsTrigger>
           <TabsTrigger value="legend" className="flex items-center gap-1 py-3">
             <Info className="h-4 w-4" />
@@ -87,10 +72,6 @@ export function Sidebar({
 
         <TabsContent value="defects" className="flex-1 overflow-hidden p-0 m-0">
           <DefectsPanel selectedDefectType={selectedDefectType} setSelectedDefectType={setSelectedDefectType} />
-        </TabsContent>
-
-        <TabsContent value="filters" className="flex-1 overflow-hidden p-0 m-0">
-          <FiltersPanel selectedRoadType={selectedRoadType} setSelectedRoadType={setSelectedRoadType} />
         </TabsContent>
 
         <TabsContent value="legend" className="flex-1 overflow-hidden p-0 m-0">

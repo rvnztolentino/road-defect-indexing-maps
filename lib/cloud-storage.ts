@@ -1,38 +1,11 @@
 import { Storage, Bucket } from "@google-cloud/storage"
-import path from "path"
+import type { DefectDetection, DefectMetadata } from "./types"
 
 interface CloudStorageSettings {
   projectId: string
   bucketName: string
   region: string
   folderPath: string
-}
-
-export interface DefectMetadata {
-  [x: string]: unknown
-  GPSLocation: [number, number] // [latitude, longitude]
-  SeverityLevel: number // 0-1 float value
-  RealWorldArea: number // square meters
-  DefectPixelCount: number
-  TotalPixelCount: number
-  DistanceToObject: number // meters
-  ImageShape: [number, number, number] // [height, width, channels]
-  ProcessingTimestamp: string // ISO datetime
-  FuzzySeverity: number // 0-1
-  RepairProbability: number // 0-1
-  DefectCounts: Record<string, number> // { "pothole": 2, "crack": 1, ... }
-  AverageLength: number // cm
-  AverageWidth: number // cm
-  DefectRatio: number // defect pixels / bbox area
-  DominantDefectType: string
-}
-
-export interface DefectDetection {
-  id: string
-  name: string
-  imageUrl: string
-  metadata: DefectMetadata
-  location: [number, number] // [latitude, longitude]
 }
 
 interface StorageFile {
@@ -51,7 +24,7 @@ class CloudStorage {
 
     // Get settings from environment
     this.settings = {
-      projectId: process.env.GOOGLE_PROJECT_ID || "",
+      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || "",
       bucketName: process.env.GOOGLE_CLOUD_BUCKET_NAME || "",
       region: process.env.GOOGLE_CLOUD_REGION || "",
       folderPath: process.env.GOOGLE_CLOUD_FOLDER_PATH || "",
@@ -74,14 +47,17 @@ class CloudStorage {
         return false
       }
 
-      const keyPath = path.join(process.cwd(), 'google_key.json')
-      
-      this.logger.info(`Using credentials file at: ${keyPath}`)
-      
-      // Initialize client with keyFilename
-      this.client = new Storage({ 
-        projectId: this.settings.projectId, 
-        keyFilename: keyPath
+      // Initialize client with environment variables
+      this.client = new Storage({
+        projectId: this.settings.projectId,
+        credentials: {
+          type: "service_account",
+          project_id: this.settings.projectId,
+          private_key_id: process.env.GOOGLE_CLOUD_PRIVATE_KEY_ID,
+          private_key: process.env.GOOGLE_CLOUD_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+          client_email: process.env.GOOGLE_CLOUD_CLIENT_EMAIL,
+          client_id: process.env.GOOGLE_CLOUD_CLIENT_ID,
+        },
       })
 
       // Get bucket

@@ -14,7 +14,6 @@ const MapComponent = dynamic(() => import("@/components/map"), {
 
 export default function Home() {
   const [selectedDefectType, setSelectedDefectType] = useState<string | null>(null)
-  const [selectedRoadType, setSelectedRoadType] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
@@ -28,8 +27,6 @@ export default function Home() {
           <Sidebar
             selectedDefectType={selectedDefectType}
             setSelectedDefectType={setSelectedDefectType}
-            selectedRoadType={selectedRoadType}
-            setSelectedRoadType={setSelectedRoadType}
             setIsSidebarOpen={setIsSidebarOpen}
           />
           {/* Close overlay for mobile */}
@@ -38,7 +35,7 @@ export default function Home() {
           )}
         </div>
         <main className="flex-1 relative">
-          <MapComponent selectedDefectType={selectedDefectType} selectedRoadType={selectedRoadType} />
+          <MapComponent selectedDefectType={selectedDefectType} />
         </main>
       </div>
     </div>

@@ -1,20 +1,19 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import { Loader } from "@/components/ui/loader"
-import type { DefectDetection } from "@/lib/cloud-storage"
+import type { DefectDetection } from "@/lib/types"
 
 // Set your Mapbox access token
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || ""
 
 interface MapComponentProps {
   selectedDefectType: string | null
-  selectedRoadType: string | null
 }
 
-export default function MapComponent({ selectedDefectType, selectedRoadType }: MapComponentProps) {
+export default function MapComponent({ selectedDefectType }: MapComponentProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const [loading, setLoading] = useState(true)
@@ -36,7 +35,7 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
   }
 
   // Fetch defects from API
-  const fetchDefects = async () => {
+  const fetchDefects = useCallback(async () => {
     try {
       // If we have a lastUpdated timestamp, only fetch newer defects
       const params = lastUpdated ? `?since=${lastUpdated.toISOString()}` : ""
@@ -67,7 +66,7 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
     } catch (error) {
       console.error("Error fetching defects:", error)
     }
-  }
+  }, [lastUpdated])
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return
@@ -104,7 +103,7 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
       map.current?.remove()
       map.current = null
     }
-  }, [fetchDefects])
+  }, [])
 
   // Update map when defects or filters change
   useEffect(() => {
@@ -113,11 +112,12 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
     // Filter defects based on selected filters
     const filteredDefects = defects.filter((defect) => {
       // Filter by defect type if selected
-      if (selectedDefectType && defect.metadata.DominantDefectType !== selectedDefectType) {
-        return false
+      if (selectedDefectType) {
+        // Only show defects where the selected type is the dominant type
+        return defect.metadata.DominantDefectType === selectedDefectType;
       }
 
-      return true
+      return true;
     })
 
     // Track existing markers to remove those that are no longer needed
@@ -251,7 +251,7 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
         delete markersRef.current[id]
       }
     })
-  }, [defects, selectedDefectType, selectedRoadType, formatDefectCounts])
+  }, [defects, selectedDefectType, formatDefectCounts])
 
   // Format ISO datetime to readable format
   const formatDateTime = (isoString: string): string => {
@@ -296,7 +296,7 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
       <div ref={mapContainer} className="w-full h-full" />
 
       {/* Last updated indicator */}
-      <div className="absolute bottom-4 right-4 text-black bg-white/90 dark:bg-gray-800/90 px-3 py-1 rounded-md text-xs shadow-md">
+      <div className="absolute bottom-4 right-4 text-black bg-white/90 px-3 py-1 rounded-md text-xs shadow-md">
         {lastUpdated ? (
           <>
             Last updated: {lastUpdated.toLocaleTimeString()}
@@ -310,7 +310,7 @@ export default function MapComponent({ selectedDefectType, selectedRoadType }: M
       </div>
 
       {/* Defect count indicator */}
-      <div className="absolute top-4 right-4 text-black bg-white/90 dark:bg-gray-800/90 px-3 py-1 rounded-md text-xs shadow-md">
+      <div className="absolute top-4 right-4 text-black bg-white/90 px-3 py-1 rounded-md text-xs shadow-md">
         {defects.length} defects detected
       </div>
     </div>
