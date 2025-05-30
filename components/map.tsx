@@ -23,6 +23,7 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({})
   const openPopupsRef = useRef<Set<mapboxgl.Popup>>(new Set())
+  const [previewImage, setPreviewImage] = useState<{ url: string; isOpen: boolean }>({ url: "", isOpen: false })
 
   // Format defect counts for display
   const formatDefectCounts = (counts: Record<string, number>): string => {
@@ -45,7 +46,7 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       const data = await response.json()
 
       if (data.detections) {
-        // If we're fetching updates, append new defects to existing ones
+        // If we're fetching updates, update the defects list
         if (lastUpdated) {
           setDefects((prev) => {
             // Create a map of existing defects by ID for quick lookup
@@ -56,7 +57,11 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
               existingDefectsMap.set(detection.id, detection)
             })
 
-            return Array.from(existingDefectsMap.values())
+            // Remove defects that are no longer in the cloud
+            const currentIds = new Set(data.detections.map((d: DefectDetection) => d.id))
+            const updatedDefects = Array.from(existingDefectsMap.values()).filter(d => currentIds.has(d.id))
+
+            return updatedDefects
           })
         } else {
           // Initial load
@@ -187,7 +192,7 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
         });
 
         const imageContainer = document.createElement("div")
-        imageContainer.className = "mb-3"
+        imageContainer.className = "mb-3 cursor-pointer"
 
         const image = document.createElement("img")
         
@@ -221,12 +226,18 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
         };
 
         image.onerror = handleImageError;
-        image.className = "w-full h-auto rounded"
+        image.className = "w-full h-auto rounded hover:opacity-90 transition-opacity"
         image.style.maxWidth = "250px"
         image.style.maxHeight = "180px"
         image.alt = "Defect image"
         image.crossOrigin = "anonymous"
         image.loading = "lazy"
+        
+        // Add click handler for image preview
+        image.onclick = (e) => {
+          e.stopPropagation()
+          setPreviewImage({ url: defect.imageUrl, isOpen: true })
+        }
         
         // Add load event handler
         image.onload = function(this: GlobalEventHandlers) {
@@ -384,6 +395,27 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
           <div className="bg-white/90 px-6 py-4 rounded-lg shadow-lg flex flex-col items-center gap-3">
             <Loader />
             <p className="text-sm text-gray-600">Loading road defects...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Image preview modal */}
+      {previewImage.isOpen && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setPreviewImage({ url: "", isOpen: false })}>
+          <div className="relative max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={previewImage.url} 
+              alt="Defect preview" 
+              className="w-full h-auto rounded-lg shadow-xl"
+            />
+            <button 
+              className="absolute top-4 right-4 bg-white/90 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg transition-colors"
+              onClick={() => setPreviewImage({ url: "", isOpen: false })}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
       )}
