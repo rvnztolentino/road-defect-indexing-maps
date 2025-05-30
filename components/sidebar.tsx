@@ -35,7 +35,7 @@ export function Sidebar({
         <X className="top-2 right-2 cursor-pointer mb-2" onClick={() => setIsSidebarOpen(false)} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-full justify-between">
+            <Button variant="outline" className="w-full justify-between bg-white/5">
               <div className="flex items-center gap-2">
                 {activeTab === "defects" && <MapPin className="h-4 w-4" />}
                 {activeTab === "legend" && <Info className="h-4 w-4" />}
@@ -44,7 +44,7 @@ export function Sidebar({
               <ChevronDown className="h-4 w-4 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-[calc(100vw-1rem)] max-w-[300px]">
+          <DropdownMenuContent align="start" className="w-[calc(100vw-1rem)] max-w-[300px] bg-black">
             <DropdownMenuItem onClick={() => setActiveTab("defects")} className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
               <span>Defects</span>

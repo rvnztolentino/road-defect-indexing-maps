@@ -5,7 +5,7 @@ export function LegendPanel() {
     <div className="h-full overflow-y-auto flex flex-col">
       <div className="p-4 flex-shrink-0">
       <h2 className="text-lg font-semibold mb-4">Legend</h2>
-      <p className="text-sm text-muted-foreground mb-4">Understand the severity levels and map symbols</p>
+      <p className="text-sm text-white/80 mb-4">Understand the severity levels and map symbols</p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">

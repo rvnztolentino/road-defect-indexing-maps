@@ -99,7 +99,7 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
             "pb-2 text-sm font-medium flex-1",
             selectedTab === "types"
               ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground",
+              : "text-white/80 hover:text-white",
           )}
           onClick={() => setSelectedTab("types")}
         >
@@ -110,7 +110,7 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
             "pb-2 text-sm font-medium flex-1",
             selectedTab === "recent"
               ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground",
+              : "text-white/80 hover:text-white",
           )}
           onClick={() => setSelectedTab("recent")}
         >
@@ -121,7 +121,7 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
 
       {selectedTab === "types" ? (
         <div className="space-y-3 px-4">
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-white/80 mb-4">
               Select a defect type to view details and filter the map
           </p>
 
@@ -169,7 +169,7 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
                         }}
                       />
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">{defect.description}</p>
+                    <p className="text-sm text-white/80 mb-3">{defect.description}</p>
                     <Button
                       variant={selectedDefectType === defect.id ? "default" : "outline"}
                       size="sm"

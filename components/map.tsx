@@ -19,8 +19,10 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
   const [loading, setLoading] = useState(true)
   const [defects, setDefects] = useState<DefectDetection[]>([])
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [defectsLoaded, setDefectsLoaded] = useState(false)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({})
+  const openPopupsRef = useRef<Set<mapboxgl.Popup>>(new Set())
 
   // Format defect counts for display
   const formatDefectCounts = (counts: Record<string, number>): string => {
@@ -62,11 +64,18 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
         }
 
         setLastUpdated(new Date())
+        setDefectsLoaded(true)
       }
     } catch (error) {
       console.error("Error fetching defects:", error)
     }
   }, [lastUpdated])
+
+  // Function to close all open popups
+  const closeAllPopups = () => {
+    openPopupsRef.current.forEach(popup => popup.remove())
+    openPopupsRef.current.clear()
+  }
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return
@@ -76,6 +85,11 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       style: "mapbox://styles/mapbox/streets-v12",
       center: [121.0785, 14.5736], // Pasig coordinates
       zoom: 13,
+    })
+
+    // Add click handler to close popups when clicking on the map
+    map.current.on('click', () => {
+      closeAllPopups()
     })
 
     map.current.on("load", () => {
@@ -290,28 +304,24 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
         .setLngLat([defect.location[1], defect.location[0]]) // [longitude, latitude]
         .addTo(map.current)
 
-      // Function to check if device is mobile
-      const isMobile = () => {
-        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-      }
-
-      // Handle hover/click events based on device type
-      if (isMobile()) {
-        // On mobile, use click/tap
-        markerEl.addEventListener('click', () => {
-          popup.setLngLat([defect.location[1], defect.location[0]])
-          popup.addTo(map.current!)
-        })
-      } else {
-        // On desktop, use hover
-        markerEl.addEventListener('mouseenter', () => {
-          popup.setLngLat([defect.location[1], defect.location[0]])
-          popup.addTo(map.current!)
-        })
-        markerEl.addEventListener('mouseleave', () => {
+      // Handle click/tap events for both mobile and desktop
+      markerEl.addEventListener('click', (e) => {
+        e.stopPropagation() // Prevent the map click event from firing
+        
+        if (popup.isOpen()) {
+          // If popup is already open, close it
           popup.remove()
-        })
-      }
+          openPopupsRef.current.delete(popup)
+        } else {
+          // Close all other popups first
+          closeAllPopups()
+          
+          // Open this popup
+          popup.setLngLat([defect.location[1], defect.location[0]])
+          popup.addTo(map.current!)
+          openPopupsRef.current.add(popup)
+        }
+      })
 
       // Store marker reference
       markersRef.current[defect.id] = marker
@@ -368,8 +378,18 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       )}
       <div ref={mapContainer} className="w-full h-full" />
 
+      {/* Loading defects popup */}
+      {!defectsLoaded && !loading && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="bg-white/90 px-6 py-4 rounded-lg shadow-lg flex flex-col items-center gap-3">
+            <Loader />
+            <p className="text-sm text-gray-600">Loading road defects...</p>
+          </div>
+        </div>
+      )}
+
       {/* Last updated indicator */}
-      <div className="absolute bottom-4 right-4 text-black bg-white/90 px-3 py-1 rounded-md text-xs shadow-md">
+      <div className="absolute bottom-6 right-4 text-black bg-white/90 px-3 py-1 rounded-md text-xs shadow-md">
         {lastUpdated ? (
           <>
             Last updated: {lastUpdated.toLocaleTimeString()}
@@ -383,7 +403,7 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       </div>
 
       {/* Defect count indicator */}
-      <div className="absolute top-4 right-4 text-black bg-white/90 px-3 py-1 rounded-md text-xs shadow-md">
+      <div className="absolute top-4 left-4 text-black bg-white/90 px-3 py-1 rounded-md text-xs shadow-md">
         {defects.length} defects detected
       </div>
     </div>
