@@ -74,8 +74,8 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/streets-v12",
-      center: [121.0785, 14.5736], // Manila coordinates
-      zoom: 12,
+      center: [121.0785, 14.5736], // Pasig coordinates
+      zoom: 13,
     })
 
     map.current.on("load", () => {
@@ -145,7 +145,7 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       const severityValue = defect.metadata.SeverityLevel
       
       if (severityValue >= 0.7) {
-        markerColor = "#ef4444" // Red for high severity (0.7-1.0)
+        markerColor = "#f0b101" // Red for severe (0.7-1.0)
       } else if (severityValue >= 0.3) {
         markerColor = "#f97316" // Orange for moderate (0.3-0.69)
       } else {
@@ -166,20 +166,67 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
 
       // Add image if available
       if (defect.imageUrl) {
+        console.log("Attempting to load image:", {
+          url: defect.imageUrl,
+          defectId: defect.id,
+          timestamp: new Date().toISOString()
+        });
+
         const imageContainer = document.createElement("div")
         imageContainer.className = "mb-3"
 
         const image = document.createElement("img")
-        image.src = defect.imageUrl
+        
+        // Add error handling before setting src
+        const handleImageError = function(this: GlobalEventHandlers, e: string | Event) {
+          console.error("Image failed to load:", {
+            url: defect.imageUrl,
+            defectId: defect.id,
+            error: e,
+            status: (this as HTMLImageElement).naturalWidth === 0 ? "Failed to load" : "Loaded but invalid",
+            timestamp: new Date().toISOString(),
+            headers: {
+              'Access-Control-Allow-Origin': (this as HTMLImageElement).getAttribute('crossorigin') ? 'anonymous' : 'none'
+            }
+          });
+          
+          // Try to fetch the image directly to check if it's accessible
+          fetch(defect.imageUrl)
+            .then(response => {
+              console.log("Direct fetch response:", {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries())
+              });
+            })
+            .catch(error => {
+              console.error("Direct fetch error:", error);
+            });
+            
+          (this as HTMLImageElement).src = "/placeholder.svg?height=180&width=250"
+        };
+
+        image.onerror = handleImageError;
         image.className = "w-full h-auto rounded"
         image.style.maxWidth = "250px"
         image.style.maxHeight = "180px"
         image.alt = "Defect image"
         image.crossOrigin = "anonymous"
         image.loading = "lazy"
-        image.onerror = () => {
-          image.src = "/placeholder.svg?height=180&width=250"
-        }
+        
+        // Add load event handler
+        image.onload = function(this: GlobalEventHandlers) {
+          const img = this as HTMLImageElement;
+          console.log("Image loaded successfully:", {
+            url: defect.imageUrl,
+            defectId: defect.id,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight
+          });
+        };
+
+        // Set src after all handlers are attached
+        image.src = defect.imageUrl
 
         imageContainer.appendChild(image)
         popupContent.appendChild(imageContainer)
@@ -232,13 +279,39 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       popupContent.appendChild(infoContainer)
 
       // Create popup
-      const popup = new mapboxgl.Popup({ offset: 25 }).setDOMContent(popupContent)
+      const popup = new mapboxgl.Popup({ 
+        offset: 25,
+        closeButton: false,
+        closeOnClick: false
+      }).setDOMContent(popupContent)
 
       // Add marker to map
       const marker = new mapboxgl.Marker(markerEl)
         .setLngLat([defect.location[1], defect.location[0]]) // [longitude, latitude]
-        .setPopup(popup)
         .addTo(map.current)
+
+      // Function to check if device is mobile
+      const isMobile = () => {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      }
+
+      // Handle hover/click events based on device type
+      if (isMobile()) {
+        // On mobile, use click/tap
+        markerEl.addEventListener('click', () => {
+          popup.setLngLat([defect.location[1], defect.location[0]])
+          popup.addTo(map.current!)
+        })
+      } else {
+        // On desktop, use hover
+        markerEl.addEventListener('mouseenter', () => {
+          popup.setLngLat([defect.location[1], defect.location[0]])
+          popup.addTo(map.current!)
+        })
+        markerEl.addEventListener('mouseleave', () => {
+          popup.remove()
+        })
+      }
 
       // Store marker reference
       markersRef.current[defect.id] = marker
@@ -278,7 +351,7 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
   // Format severity level for display
   const formatSeverityLevel = (severity: number): string => {
     if (severity >= 0.7) {
-      return "High"
+      return "Severe"
     } else if (severity >= 0.3) {
       return "Moderate"
     } else {

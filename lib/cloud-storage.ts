@@ -164,14 +164,35 @@ class CloudStorage {
 
     try {
       const file = this.bucket.file(blobName)
+      const [exists] = await file.exists()
+      
+      if (!exists) {
+        this.logger.warn(`File not found: ${blobName}`)
+        return ""
+      }
+
+      // Get file metadata to verify it's accessible
+      const [metadata] = await file.getMetadata()
+      this.logger.info(`File metadata for ${blobName}:`, {
+        size: metadata.size,
+        contentType: metadata.contentType,
+        updated: metadata.updated
+      })
+
       const [url] = await file.getSignedUrl({
         version: "v4",
         action: "read",
-        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+        expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
       })
+      
+      this.logger.info(`Generated signed URL for ${blobName}: ${url}`)
       return url
     } catch (e) {
       this.logger.error(`Error getting signed URL for ${blobName}: ${e}`)
+      if (e instanceof Error) {
+        this.logger.error(`Error details: ${e.message}`)
+        this.logger.error(`Error stack: ${e.stack}`)
+      }
       return ""
     }
   }
@@ -238,16 +259,17 @@ class CloudStorage {
             const metadata = await this.getMetadata(jsonBlobName)
 
             if (metadata && metadata.GPSLocation) {
-              // Get corresponding image URL
-              const imageBlobName = jsonBlobName.replace(/\.json$/, ".jpg")
+              // Get corresponding image URL - handle both with and without _metadata suffix
+              const baseName = jsonBlobName.replace(/\.json$/, "")
+              const imageBlobName = baseName.endsWith("_metadata") 
+                ? baseName.replace(/_metadata$/, ".jpg")
+                : `${baseName}.jpg`
               const imageUrl = await this.getSignedUrl(imageBlobName)
 
               // Extract ID from filename
-              const id =
-                jsonBlobName
-                  .split("/")
-                  .pop()
-                  ?.replace(/\.json$/, "") || ""
+              const id = baseName.endsWith("_metadata")
+                ? baseName.replace(/_metadata$/, "")
+                : baseName
 
               return {
                 id,

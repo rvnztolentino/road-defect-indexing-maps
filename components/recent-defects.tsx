@@ -65,7 +65,7 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
   // Format severity level for display
   const formatSeverityLevel = (severity: number): string => {
     if (severity >= 0.7) {
-      return "High"
+      return "Severe"
     } else if (severity >= 0.3) {
       return "Moderate"
     } else {
@@ -120,8 +120,9 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
                       {formatDateTime(defect.metadata.ProcessingTimestamp)}
                     </p>
                     <p className="text-xs">
-                      {Object.keys(defect.metadata.DefectCounts).length} defect types,
-                      {defect.metadata.RealWorldArea.toFixed(1)} m²
+                      {Object.entries(defect.metadata.DefectCounts)
+                        .map(([type, count]) => `${type}: ${count}`)
+                        .join(", ")}
                     </p>
                     <p className="text-xs">Repair: {defect.metadata.RepairProbability === 1 ? "Yes" : "No"}</p>
                   </div>

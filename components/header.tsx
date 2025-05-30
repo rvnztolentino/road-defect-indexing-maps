@@ -2,6 +2,7 @@
 
 import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -18,9 +19,11 @@ export function Header({ onMenuClick }: HeaderProps) {
         <h1 className="text-lg font-semibold">Road Defect Mapping</h1>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" className="text-xs">
-          GitHub
-        </Button>
+        <Link href="https://github.com/rvnztolentino/road-defect-indexing-maps" target="_blank" rel="noopener noreferrer">
+          <Button variant="outline" size="sm" className="text-xs">
+            GitHub
+          </Button>
+        </Link>
       </div>
     </header>
   )
