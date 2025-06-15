@@ -73,6 +73,23 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
     }
   }
 
+  const handleDefectSelect = (defect: DefectDetection) => {
+    // First trigger the onSelectDefect callback to locate the defect on the map
+    onSelectDefect?.(defect)
+    
+    // Then trigger a click on the marker after a short delay to ensure the map has moved
+    setTimeout(() => {
+      const marker = document.querySelector(`[data-defect-id="${defect.id}"]`)
+      if (marker) {
+        marker.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        }))
+      }
+    }, 500) // Small delay to ensure map movement is complete
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
@@ -93,7 +110,7 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
             <Card
               key={defect.id}
               className="cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => onSelectDefect?.(defect)}
+              onClick={() => handleDefectSelect(defect)}
             >
               <CardContent className="p-2">
                 <div className="flex gap-2">

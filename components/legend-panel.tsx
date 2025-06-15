@@ -23,7 +23,7 @@ export function LegendPanel() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full bg-green-500"></div>
-              <span className="text-sm">Minor</span>
+              <span className="text-sm">Low</span>
             </div>
           </div>
         </div>
@@ -42,10 +42,6 @@ export function LegendPanel() {
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full bg-white"></div>
               <span className="text-sm">Pothole</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-white"></div>
-              <span className="text-sm">Patch</span>
             </div>
           </div>
           </div>

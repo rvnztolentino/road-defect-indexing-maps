@@ -106,8 +106,8 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       // Fetch initial defects
       fetchDefects()
 
-      // Set up refresh interval (every 30 seconds)
-      refreshIntervalRef.current = setInterval(fetchDefects, 30000)
+      // Set up refresh interval (every 60 seconds)
+      refreshIntervalRef.current = setInterval(fetchDefects, 60000)
     })
 
     return () => {
@@ -158,6 +158,7 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       // Create custom marker element
       const markerEl = document.createElement("div")
       markerEl.className = "defect-marker"
+      markerEl.setAttribute("data-defect-id", defect.id)
 
       // Determine marker color based on severity level
       let markerColor
@@ -425,9 +426,6 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
         {lastUpdated ? (
           <>
             Last updated: {lastUpdated.toLocaleTimeString()}
-            <button className="ml-2 text-primary hover:text-primary/80" onClick={fetchDefects} title="Refresh data">
-              ↻
-            </button>
           </>
         ) : (
           "Loading data..."
