@@ -8,17 +8,20 @@ import { DefectsPanel } from "@/components/defects-panel"
 import { LegendPanel } from "@/components/legend-panel"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import type { DefectDetection } from "@/lib/types"
 
 interface SidebarProps {
   selectedDefectType: string | null;
   setSelectedDefectType: (type: string | null) => void;
   setIsSidebarOpen: (isOpen: boolean) => void;
+  onSelectDefect: (defect: DefectDetection) => void;
 }
 
 export function Sidebar({
   selectedDefectType,
   setSelectedDefectType,
   setIsSidebarOpen,
+  onSelectDefect,
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState("defects")
 
@@ -71,7 +74,11 @@ export function Sidebar({
         </TabsList>
 
         <TabsContent value="defects" className="flex-1 overflow-hidden p-0 m-0">
-          <DefectsPanel selectedDefectType={selectedDefectType} setSelectedDefectType={setSelectedDefectType} />
+          <DefectsPanel 
+            selectedDefectType={selectedDefectType} 
+            setSelectedDefectType={setSelectedDefectType}
+            onSelectDefect={onSelectDefect}
+          />
         </TabsContent>
 
         <TabsContent value="legend" className="flex-1 overflow-hidden p-0 m-0">

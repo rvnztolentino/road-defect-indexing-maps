@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react"
 import mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import { Loader } from "@/components/ui/loader"
@@ -13,7 +13,7 @@ interface MapComponentProps {
   selectedDefectType: string | null
 }
 
-export default function MapComponent({ selectedDefectType }: MapComponentProps) {
+const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void }, MapComponentProps>(({ selectedDefectType }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const [loading, setLoading] = useState(true)
@@ -81,6 +81,27 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
     openPopupsRef.current.forEach(popup => popup.remove())
     openPopupsRef.current.clear()
   }
+
+  // Function to fly to a defect's location
+  const flyToDefect = useCallback((defect: DefectDetection) => {
+    if (!map.current) return
+
+    // Close any open popups
+    closeAllPopups()
+
+    // Fly to the defect's location
+    map.current.flyTo({
+      center: [defect.location[1], defect.location[0]], // [longitude, latitude]
+      zoom: 16, // Zoom level to show the defect clearly
+      duration: 2000, // Animation duration in milliseconds
+      essential: true // This ensures the animation is not skipped
+    })
+  }, [])
+
+  // Expose the flyToDefect function through a ref
+  useImperativeHandle(ref, () => ({
+    flyToDefect
+  }))
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return
@@ -438,4 +459,8 @@ export default function MapComponent({ selectedDefectType }: MapComponentProps) 
       </div>
     </div>
   )
-}
+})
+
+MapComponent.displayName = "MapComponent"
+
+export default MapComponent

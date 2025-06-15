@@ -110,7 +110,10 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
             <Card
               key={defect.id}
               className="cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => handleDefectSelect(defect)}
+              onClick={() => {
+                handleDefectSelect?.(defect);
+                onSelectDefect?.(defect);
+              }}
             >
               <CardContent className="p-2">
                 <div className="flex gap-2">

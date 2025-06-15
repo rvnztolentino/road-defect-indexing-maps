@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import dynamic from "next/dynamic"
 import { Loader } from "@/components/ui/loader"
 import { Sidebar } from "@/components/sidebar"
 import { Header } from "@/components/header"
+import type { DefectDetection } from "@/lib/types"
 
 // Dynamically import the Map component to avoid SSR issues with Mapbox
 const MapComponent = dynamic(() => import("@/components/map"), {
@@ -15,6 +16,15 @@ const MapComponent = dynamic(() => import("@/components/map"), {
 export default function Home() {
   const [selectedDefectType, setSelectedDefectType] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const mapRef = useRef<{ flyToDefect: (defect: DefectDetection) => void }>(null)
+
+  const handleSelectDefect = (defect: DefectDetection) => {
+    // First fly to the defect's location
+    mapRef.current?.flyToDefect(defect)
+    
+    // Then select the defect type
+    setSelectedDefectType(defect.metadata.DominantDefectType)
+  }
 
   return (
     <div className="flex flex-col h-screen">
@@ -28,6 +38,7 @@ export default function Home() {
             selectedDefectType={selectedDefectType}
             setSelectedDefectType={setSelectedDefectType}
             setIsSidebarOpen={setIsSidebarOpen}
+            onSelectDefect={handleSelectDefect}
           />
           {/* Close overlay for mobile */}
           {isSidebarOpen && (
@@ -35,7 +46,7 @@ export default function Home() {
           )}
         </div>
         <main className="flex-1 relative">
-          <MapComponent selectedDefectType={selectedDefectType} />
+          <MapComponent ref={mapRef} selectedDefectType={selectedDefectType} />
         </main>
       </div>
     </div>

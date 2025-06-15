@@ -12,6 +12,7 @@ import type { DefectDetection } from "@/lib/types"
 interface DefectsPanelProps {
   selectedDefectType: string | null
   setSelectedDefectType: (type: string | null) => void
+  onSelectDefect: (defect: DefectDetection) => void
 }
 
 interface DefectTypeInfo {
@@ -21,7 +22,11 @@ interface DefectTypeInfo {
   image: string
 }
 
-export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: DefectsPanelProps) {
+export function DefectsPanel({ 
+  selectedDefectType, 
+  setSelectedDefectType,
+  onSelectDefect 
+}: DefectsPanelProps) {
   const [expandedDefect, setExpandedDefect] = useState<string | null>(null)
   const [selectedTab, setSelectedTab] = useState<"types" | "recent">("types")
   const [defectTypes, setDefectTypes] = useState<DefectTypeInfo[]>([
@@ -81,11 +86,6 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
 
   const selectDefectType = (defectId: string) => {
     setSelectedDefectType(selectedDefectType === defectId ? null : defectId)
-  }
-
-  const handleSelectDefect = (defect: DefectDetection) => {
-    // Select the dominant defect type
-    setSelectedDefectType(defect.metadata.DominantDefectType)
   }
 
   return (
@@ -188,7 +188,7 @@ export function DefectsPanel({ selectedDefectType, setSelectedDefectType }: Defe
           ))}
         </div>
       ) : (
-        <RecentDefects onSelectDefect={handleSelectDefect} />
+        <RecentDefects onSelectDefect={onSelectDefect} />
       )}
     </div>
   )
