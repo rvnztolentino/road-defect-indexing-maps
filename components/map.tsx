@@ -47,6 +47,12 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
       console.log('Fetching defects...')
       const params = lastUpdated ? `?since=${lastUpdated.toISOString()}` : ""
       const response = await fetch(`/api/defects${params}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to fetch defects')
+      }
+
       const data = await response.json()
 
       console.log('Received defects data:', {
@@ -83,6 +89,8 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
       }
     } catch (error) {
       console.error("Error fetching defects:", error)
+      // Show error state to user
+      setDefectsLoaded(true) // Allow map to render even if fetch fails
     }
   }, [lastUpdated])
 
