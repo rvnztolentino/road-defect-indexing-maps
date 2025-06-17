@@ -185,8 +185,8 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
       let markerColor
       const severityValue = defect.metadata.SeverityLevel
       
-      if (severityValue >= 0.7) {
-        markerColor = "#f0b101" // Red for severe (0.7-1.0)
+      if (severityValue >= 0.5) {
+        markerColor = "#f0b101" // Red for severe (0.5-1.0)
       } else if (severityValue >= 0.3) {
         markerColor = "#f97316" // Orange for moderate (0.3-0.69)
       } else {
@@ -291,7 +291,7 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
       severitySpan.style.backgroundColor = severityColor === "text-red-500" ? "#fee2e2" : 
                                         severityColor === "text-yellow-500" ? "#fef3c7" : 
                                         "#dcfce7"
-      severitySpan.textContent = severityText
+      severitySpan.textContent = `${severityText} (${(defect.metadata.SeverityLevel * 100).toFixed(1)}%)`
       title.appendChild(severitySpan)
 
       const infoContainer = document.createElement("div")
@@ -301,6 +301,11 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
       const timestamp = document.createElement("p")
       timestamp.innerHTML = `<span class="font-medium">Detected:</span> ${formatDateTime(defect.metadata.ProcessingTimestamp)}`
       infoContainer.appendChild(timestamp)
+
+      // Add severity level with percentage
+      const severityInfo = document.createElement("p")
+      severityInfo.innerHTML = `<span class="font-medium">Severity:</span> ${severityText} (${(defect.metadata.SeverityLevel * 100).toFixed(1)}%)`
+      infoContainer.appendChild(severityInfo)
 
       // Add defect counts
       const defectsList = document.createElement("p")
@@ -382,9 +387,10 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
 
   // Get severity color class
   const getSeverityColorClass = (severity: number): string => {
-    if (severity >= 0.7) {
+    const roundedSeverity = Math.round(severity * 100) / 100
+    if (roundedSeverity >= 0.5) {
       return "text-red-500"
-    } else if (severity >= 0.3) {
+    } else if (roundedSeverity >= 0.3) {
       return "text-yellow-500"
     } else {
       return "text-green-500"
@@ -393,9 +399,10 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
 
   // Format severity level for display
   const formatSeverityLevel = (severity: number): string => {
-    if (severity >= 0.7) {
+    const roundedSeverity = Math.round(severity * 100) / 100
+    if (roundedSeverity >= 0.5) {
       return "Severe"
-    } else if (severity >= 0.3) {
+    } else if (roundedSeverity >= 0.3) {
       return "Moderate"
     } else {
       return "Low"

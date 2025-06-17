@@ -53,9 +53,10 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
 
   // Get severity color class
   const getSeverityColorClass = (severity: number): string => {
-    if (severity >= 0.7) {
+    const roundedSeverity = Math.round(severity * 100) / 100
+    if (roundedSeverity >= 0.5) {
       return "text-red-500"
-    } else if (severity >= 0.3) {
+    } else if (roundedSeverity >= 0.3) {
       return "text-yellow-500"
     } else {
       return "text-green-500"
@@ -64,9 +65,10 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
 
   // Format severity level for display
   const formatSeverityLevel = (severity: number): string => {
-    if (severity >= 0.7) {
+    const roundedSeverity = Math.round(severity * 100) / 100
+    if (roundedSeverity >= 0.5) {
       return "Severe"
-    } else if (severity >= 0.3) {
+    } else if (roundedSeverity >= 0.3) {
       return "Moderate"
     } else {
       return "Low"
@@ -133,7 +135,7 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
                     <div className="flex justify-between items-start">
                       <p className="text-xs font-medium truncate">{defect.metadata.DominantDefectType}</p>
                       <span className={`text-xs font-medium ${getSeverityColorClass(defect.metadata.SeverityLevel)}`}>
-                        {formatSeverityLevel(defect.metadata.SeverityLevel)}
+                        {formatSeverityLevel(defect.metadata.SeverityLevel)} ({(defect.metadata.SeverityLevel * 100).toFixed(1)}%)
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">

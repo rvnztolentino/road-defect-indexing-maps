@@ -15,15 +15,15 @@ export function LegendPanel() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full bg-red-500"></div>
-              <span className="text-sm">Severe</span>
+              <span className="text-sm">Severe (&ge;50%)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
-              <span className="text-sm">Moderate</span>
+              <span className="text-sm">Moderate (30-49%)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded-full bg-green-500"></div>
-              <span className="text-sm">Low</span>
+              <span className="text-sm">Low (&lt;30%)</span>
             </div>
           </div>
         </div>
