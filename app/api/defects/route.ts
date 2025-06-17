@@ -4,9 +4,10 @@ import { cloudStorage } from "@/lib/cloud-storage"
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const requestedLimit = Number.parseInt(searchParams.get("limit") || "1000", 10)
-    // Set a maximum limit of 5000 to prevent server overload
-    const limit = Math.min(requestedLimit, 5000)
+    // Default to 5000 defects if no limit is specified
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "5000", 10)
+    // Set a maximum limit of 10000 to prevent server overload
+    const limit = Math.min(requestedLimit, 10000)
     const since = searchParams.get("since") // ISO timestamp to get only newer detections
 
     const detections = await cloudStorage.getAllDetections(limit)

@@ -18,6 +18,7 @@ export function RecentDefects({ onSelectDefect }: RecentDefectsProps) {
   const fetchRecentDefects = async () => {
     setLoading(true)
     try {
+      // Limit to 50 most recent defects
       const response = await fetch("/api/defects?limit=50")
       const data = await response.json()
 

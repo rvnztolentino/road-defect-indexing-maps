@@ -13,7 +13,7 @@ interface MapComponentProps {
   selectedDefectType: string | null
 }
 
-const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void }, MapComponentProps>(({ selectedDefectType }, ref) => {
+const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void }, MapComponentProps>(({ selectedDefectType: _selectedDefectType }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const [loading, setLoading] = useState(true)
@@ -21,9 +21,13 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [defectsLoaded, setDefectsLoaded] = useState(false)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const markersRef = useRef<{ [id: string]: mapboxgl.Marker }>({})
   const openPopupsRef = useRef<Set<mapboxgl.Popup>>(new Set())
   const [previewImage, setPreviewImage] = useState<{ url: string; isOpen: boolean }>({ url: "", isOpen: false })
+  const [loadingClusters, setLoadingClusters] = useState(false)
+  const [currentZoom, setCurrentZoom] = useState(13)
+  const clickHandlerRef = useRef<((e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => void) | null>(null)
+  const mouseEnterHandlerRef = useRef<(() => void) | null>(null)
+  const mouseLeaveHandlerRef = useRef<(() => void) | null>(null)
 
   // Format defect counts for display
   const formatDefectCounts = (counts: Record<string, number>): string => {
@@ -40,34 +44,40 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
   // Fetch defects from API
   const fetchDefects = useCallback(async () => {
     try {
-      // If we have a lastUpdated timestamp, only fetch newer defects
+      console.log('Fetching defects...')
       const params = lastUpdated ? `?since=${lastUpdated.toISOString()}` : ""
       const response = await fetch(`/api/defects${params}`)
       const data = await response.json()
 
+      console.log('Received defects data:', {
+        hasDetections: !!data.detections,
+        count: data.detections?.length || 0,
+        firstDefect: data.detections?.[0]
+      })
+
       if (data.detections) {
-        // If we're fetching updates, update the defects list
         if (lastUpdated) {
           setDefects((prev) => {
-            // Create a map of existing defects by ID for quick lookup
             const existingDefectsMap = new Map(prev.map((d) => [d.id, d]))
-
-            // Add new defects and update existing ones
             data.detections.forEach((detection: DefectDetection) => {
               existingDefectsMap.set(detection.id, detection)
             })
-
-            // Remove defects that are no longer in the cloud
             const currentIds = new Set(data.detections.map((d: DefectDetection) => d.id))
             const updatedDefects = Array.from(existingDefectsMap.values()).filter(d => currentIds.has(d.id))
-
+            console.log('Updated defects:', {
+              previousCount: prev.length,
+              newCount: updatedDefects.length,
+              firstDefect: updatedDefects[0]
+            })
             return updatedDefects
           })
         } else {
-          // Initial load
+          console.log('Setting initial defects:', {
+            count: data.detections.length,
+            firstDefect: data.detections[0]
+          })
           setDefects(data.detections)
         }
-
         setLastUpdated(new Date())
         setDefectsLoaded(true)
       }
@@ -82,11 +92,11 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
     openPopupsRef.current.clear()
   }
 
-  // Function to fly to a defect's location
+  // Function to fly to a defect's location and show popup
   const flyToDefect = useCallback((defect: DefectDetection) => {
     if (!map.current) return
 
-    // Close any open popups
+    // Close any existing popups
     closeAllPopups()
 
     // Fly to the defect's location
@@ -96,110 +106,35 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
       duration: 2000, // Animation duration in milliseconds
       essential: true // This ensures the animation is not skipped
     })
-  }, [])
 
-  // Expose the flyToDefect function through a ref
-  useImperativeHandle(ref, () => ({
-    flyToDefect
-  }))
-
-  useEffect(() => {
-    if (!mapContainer.current || map.current) return
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [121.0785, 14.5736], // Pasig coordinates
-      zoom: 13,
-    })
-
-    // Add click handler to close popups when clicking on the map
-    map.current.on('click', () => {
-      closeAllPopups()
-    })
-
-    map.current.on("load", () => {
-      setLoading(false)
-
-      // Add navigation controls
-      map.current?.addControl(new mapboxgl.NavigationControl(), "top-right")
-
-      // Fetch initial defects
-      fetchDefects()
-
-      // Set up refresh interval (every 60 seconds)
-      refreshIntervalRef.current = setInterval(fetchDefects, 60000)
-    })
-
-    return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current)
-      }
-
-      // Clean up markers
-      const currentMarkers = markersRef.current
-      Object.values(currentMarkers).forEach((marker) => marker.remove())
-
-      map.current?.remove()
-      map.current = null
-    }
-  }, [])
-
-  // Update map when defects or filters change
-  useEffect(() => {
-    if (!map.current || !map.current.isStyleLoaded() || defects.length === 0) return
-
-    // Filter defects based on selected filters
-    const filteredDefects = defects.filter((defect) => {
-      // Filter by defect type if selected
-      if (selectedDefectType) {
-        // Only show defects where the selected type is the dominant type
-        return defect.metadata.DominantDefectType.toLowerCase() === selectedDefectType.toLowerCase();
-      }
-
-      return true;
-    })
-
-    // Track existing markers to remove those that are no longer needed
-    const currentMarkerIds = new Set<string>()
-
-    // Add or update markers for each defect
-    filteredDefects.forEach((defect) => {
+    // Wait for the fly animation to complete before showing the popup
+    setTimeout(() => {
       if (!map.current) return
 
-      currentMarkerIds.add(defect.id)
-
-      // Check if marker already exists
-      if (markersRef.current[defect.id]) {
-        // Update marker position if needed
-        markersRef.current[defect.id].setLngLat([defect.location[1], defect.location[0]])
-        return
+      // Helper functions
+      const formatSeverityLevel = (severity: number): string => {
+        const roundedSeverity = Math.round(severity * 100) / 100
+        if (roundedSeverity >= 0.5) return "Severe"
+        if (roundedSeverity >= 0.3) return "Moderate"
+        return "Low"
       }
 
-      // Create custom marker element
-      const markerEl = document.createElement("div")
-      markerEl.className = "defect-marker"
-      markerEl.setAttribute("data-defect-id", defect.id)
-
-      // Determine marker color based on severity level
-      let markerColor
-      const severityValue = defect.metadata.SeverityLevel
-      
-      if (severityValue >= 0.5) {
-        markerColor = "#f0b101" // Red for severe (0.5-1.0)
-      } else if (severityValue >= 0.3) {
-        markerColor = "#f97316" // Orange for moderate (0.3-0.69)
-      } else {
-        markerColor = "#22c55e" // Green for low severity (0-0.29)
+      const getSeverityColorClass = (severity: number): string => {
+        const roundedSeverity = Math.round(severity * 100) / 100
+        if (roundedSeverity >= 0.5) return "text-red-500"
+        if (roundedSeverity >= 0.3) return "text-yellow-500"
+        return "text-green-500"
       }
 
-      // Style the marker
-      markerEl.style.width = "20px"
-      markerEl.style.height = "20px"
-      markerEl.style.borderRadius = "50%"
-      markerEl.style.backgroundColor = markerColor
-      markerEl.style.border = "2px solid white"
-      markerEl.style.boxShadow = "0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2)"
+      const formatDateTime = (isoString: string): string => {
+        try {
+          const date = new Date(isoString)
+          return date.toLocaleString()
+        } catch (error) {
+          console.error("Error formatting date:", error)
+          return isoString
+        }
+      }
 
       // Create popup content
       const popupContent = document.createElement("div")
@@ -207,73 +142,23 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
 
       // Add image if available
       if (defect.imageUrl) {
-        console.log("Attempting to load image:", {
-          url: defect.imageUrl,
-          defectId: defect.id,
-          timestamp: new Date().toISOString()
-        });
-
         const imageContainer = document.createElement("div")
         imageContainer.className = "mb-3 cursor-pointer"
 
         const image = document.createElement("img")
-        
-        // Add error handling before setting src
-        const handleImageError = function(this: GlobalEventHandlers, e: string | Event) {
-          console.error("Image failed to load:", {
-            url: defect.imageUrl,
-            defectId: defect.id,
-            error: e,
-            status: (this as HTMLImageElement).naturalWidth === 0 ? "Failed to load" : "Loaded but invalid",
-            timestamp: new Date().toISOString(),
-            headers: {
-              'Access-Control-Allow-Origin': (this as HTMLImageElement).getAttribute('crossorigin') ? 'anonymous' : 'none'
-            }
-          });
-          
-          // Try to fetch the image directly to check if it's accessible
-          fetch(defect.imageUrl)
-            .then(response => {
-              console.log("Direct fetch response:", {
-                status: response.status,
-                statusText: response.statusText,
-                headers: Object.fromEntries(response.headers.entries())
-              });
-            })
-            .catch(error => {
-              console.error("Direct fetch error:", error);
-            });
-            
-          (this as HTMLImageElement).src = "/placeholder.svg?height=180&width=250"
-        };
-
-        image.onerror = handleImageError;
         image.className = "w-full h-auto rounded hover:opacity-90 transition-opacity"
         image.style.maxWidth = "250px"
         image.style.maxHeight = "180px"
         image.alt = "Defect image"
         image.crossOrigin = "anonymous"
         image.loading = "lazy"
-        
+        image.src = defect.imageUrl
+
         // Add click handler for image preview
-        image.onclick = (e) => {
+        image.onclick = (e: MouseEvent) => {
           e.stopPropagation()
           setPreviewImage({ url: defect.imageUrl, isOpen: true })
         }
-        
-        // Add load event handler
-        image.onload = function(this: GlobalEventHandlers) {
-          const img = this as HTMLImageElement;
-          console.log("Image loaded successfully:", {
-            url: defect.imageUrl,
-            defectId: defect.id,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight
-          });
-        };
-
-        // Set src after all handlers are attached
-        image.src = defect.imageUrl
 
         imageContainer.appendChild(image)
         popupContent.appendChild(imageContainer)
@@ -337,88 +222,437 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
         closeOnClick: false
       }).setDOMContent(popupContent)
 
-      // Add marker to map
-      const marker = new mapboxgl.Marker(markerEl)
-        .setLngLat([defect.location[1], defect.location[0]]) // [longitude, latitude]
-        .addTo(map.current)
+      // Add popup to map
+      popup.setLngLat([defect.location[1], defect.location[0]]).addTo(map.current)
+      openPopupsRef.current.add(popup)
+    }, 2000) // Wait for fly animation to complete
+  }, [formatDefectCounts])
 
-      // Handle click/tap events for both mobile and desktop
-      markerEl.addEventListener('click', (e) => {
-        e.stopPropagation() // Prevent the map click event from firing
-        
-        if (popup.isOpen()) {
-          // If popup is already open, close it
-          popup.remove()
-          openPopupsRef.current.delete(popup)
-        } else {
-          // Close all other popups first
-          closeAllPopups()
-          
-          // Open this popup
-          popup.setLngLat([defect.location[1], defect.location[0]])
-          popup.addTo(map.current!)
-          openPopupsRef.current.add(popup)
-        }
-      })
+  // Expose the flyToDefect function through a ref
+  useImperativeHandle(ref, () => ({
+    flyToDefect
+  }))
 
-      // Store marker reference
-      markersRef.current[defect.id] = marker
+  // Initialize map with clustering
+  useEffect(() => {
+    if (!mapContainer.current || map.current) return
+
+    console.log('Initializing map...')
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: [121.0785, 14.5736],
+      zoom: 13,
     })
 
-    // Remove markers that are no longer in the filtered list
-    Object.keys(markersRef.current).forEach((id) => {
-      if (!currentMarkerIds.has(id)) {
-        markersRef.current[id].remove()
-        delete markersRef.current[id]
+    map.current.on('click', () => {
+      closeAllPopups()
+    })
+
+    map.current.on("load", async () => {
+      console.log('Map loaded, initializing...')
+      setLoading(false)
+
+      // Add navigation controls
+      map.current?.addControl(new mapboxgl.NavigationControl(), "top-right")
+
+      // Add clustering source and layers
+      if (map.current) {
+        console.log('Adding defects source...')
+        map.current.addSource('defects', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: []
+          },
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+          clusterProperties: {
+            sum_severity: ['+', ['get', 'severity']]
+          }
+        })
+
+        // Add cluster layer
+        map.current.addLayer({
+          id: 'clusters',
+          type: 'circle',
+          source: 'defects',
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': [
+              'step',
+              ['get', 'point_count'],
+              '#51bbd6',  // Blue for small clusters
+              100, '#f1f075',  // Yellow for medium clusters
+              750, '#f28cb1'  // Pink for large clusters
+            ],
+            'circle-radius': [
+              'step',
+              ['get', 'point_count'],
+              20,
+              100, 30,
+              750, 40
+            ]
+          }
+        })
+
+        // Add cluster count layer
+        map.current.addLayer({
+          id: 'cluster-count',
+          type: 'symbol',
+          source: 'defects',
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': '{point_count_abbreviated}',
+            'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+            'text-size': 12
+          }
+        })
+
+        // Add unclustered point layer
+        map.current.addLayer({
+          id: 'unclustered-point',
+          type: 'circle',
+          source: 'defects',
+          filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-color': [
+              'case',
+              ['>=', ['get', 'severity'], 0.5], '#ef4444',
+              ['>=', ['get', 'severity'], 0.3], '#eab308',
+              '#22c55e'
+            ],
+            'circle-radius': 8,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#fff'
+          }
+        })
+
+        // Add click handler for clusters
+        map.current.on('click', 'clusters', (e) => {
+          const features = e.features
+          if (!features || features.length === 0) return
+          
+          const clusterId = features[0].properties?.cluster_id
+          const source = map.current?.getSource('defects') as mapboxgl.GeoJSONSource
+          
+          if (!source || !map.current) return
+
+          source.getClusterExpansionZoom(
+            clusterId,
+            (err, zoom) => {
+              if (err || !zoom) return
+
+              map.current?.easeTo({
+                center: (features[0].geometry as GeoJSON.Point).coordinates as [number, number],
+                zoom: zoom,
+                duration: 500
+              })
+            }
+          )
+        })
+
+        // Change cursor on cluster hover
+        map.current.on('mouseenter', 'clusters', () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = 'pointer'
+          }
+        })
+
+        map.current.on('mouseleave', 'clusters', () => {
+          if (map.current) {
+            map.current.getCanvas().style.cursor = ''
+          }
+        })
+
+        // Fetch initial defects
+        console.log('Fetching initial defects...')
+        try {
+          const response = await fetch('/api/defects')
+          const data = await response.json()
+          console.log('Received initial defects:', {
+            hasDetections: !!data.detections,
+            count: data.detections?.length || 0,
+            firstDetection: data.detections?.[0] ? {
+              id: data.detections[0].id,
+              location: data.detections[0].location,
+              type: data.detections[0].metadata.DominantDefectType
+            } : null
+          })
+          
+          if (data.detections) {
+            setDefects(data.detections)
+            setLastUpdated(new Date())
+            setDefectsLoaded(true)
+          }
+        } catch (error) {
+          console.error('Error fetching initial defects:', error)
+        }
+
+        // Set up refresh interval
+        refreshIntervalRef.current = setInterval(fetchDefects, 60000)
       }
     })
-  }, [defects, selectedDefectType, formatDefectCounts])
 
-  // Format ISO datetime to readable format
-  const formatDateTime = (isoString: string): string => {
-    try {
-      const date = new Date(isoString)
-      return date.toLocaleString()
-    } catch (error) {
-      console.error("Error formatting date:", error)
-      return isoString
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current)
+      }
+      map.current?.remove()
+      map.current = null
     }
-  }
+  }, [])
 
-  // Get severity color class
-  const getSeverityColorClass = (severity: number): string => {
-    const roundedSeverity = Math.round(severity * 100) / 100
-    if (roundedSeverity >= 0.5) {
-      return "text-red-500"
-    } else if (roundedSeverity >= 0.3) {
-      return "text-yellow-500"
-    } else {
-      return "text-green-500"
+  // Update defects source when defects change
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded() || defects.length === 0) {
+      console.log('Map not ready or no defects:', {
+        hasMap: !!map.current,
+        isStyleLoaded: map.current?.isStyleLoaded(),
+        defectsCount: defects.length
+      })
+      return
     }
-  }
 
-  // Format severity level for display
-  const formatSeverityLevel = (severity: number): string => {
-    const roundedSeverity = Math.round(severity * 100) / 100
-    if (roundedSeverity >= 0.5) {
-      return "Severe"
-    } else if (roundedSeverity >= 0.3) {
-      return "Moderate"
-    } else {
-      return "Low"
+    console.log('Updating defects source with:', {
+      count: defects.length,
+      firstDefect: defects[0] ? {
+        id: defects[0].id,
+        location: defects[0].location,
+        type: defects[0].metadata.DominantDefectType
+      } : null
+    })
+
+    const source = map.current.getSource('defects') as mapboxgl.GeoJSONSource
+    if (!source) {
+      console.error('Defects source not found')
+      return
     }
-  }
+
+    // Filter defects based on selected type
+    const filteredDefects = _selectedDefectType
+      ? defects.filter(defect => 
+          defect.metadata.DominantDefectType.toLowerCase() === _selectedDefectType.toLowerCase()
+        )
+      : defects
+
+    const features = filteredDefects.map(defect => {
+      const feature = {
+        type: 'Feature' as const,
+        properties: {
+          id: defect.id,
+          severity: defect.metadata.SeverityLevel,
+          type: defect.metadata.DominantDefectType
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [defect.location[1], defect.location[0]]
+        }
+      }
+      return feature
+    })
+
+    console.log('Setting source data with features:', {
+      count: features.length,
+      firstFeature: features[0],
+      selectedType: _selectedDefectType
+    })
+
+    source.setData({
+      type: 'FeatureCollection',
+      features
+    })
+
+    // Remove existing click handlers
+    if (map.current) {
+      if (clickHandlerRef.current) map.current.off('click', 'unclustered-point', clickHandlerRef.current)
+      if (mouseEnterHandlerRef.current) map.current.off('mouseenter', 'unclustered-point', mouseEnterHandlerRef.current)
+      if (mouseLeaveHandlerRef.current) map.current.off('mouseleave', 'unclustered-point', mouseLeaveHandlerRef.current)
+    }
+
+    // Add click handlers for individual points
+    clickHandlerRef.current = (e) => {
+      if (!e.features?.[0]) return
+      const coordinates = (e.features[0].geometry as GeoJSON.Point).coordinates.slice() as [number, number]
+      const properties = e.features[0].properties
+      const defect = defects.find(d => d.id === properties?.id)
+      
+      if (!defect) {
+        console.log('No defect found for ID:', properties?.id)
+        return
+      }
+
+      console.log('Found defect:', {
+        id: defect.id,
+        type: defect.metadata.DominantDefectType,
+        severity: defect.metadata.SeverityLevel
+      })
+
+      // Close any existing popups
+      closeAllPopups()
+
+      // Helper functions
+      const formatSeverityLevel = (severity: number): string => {
+        const roundedSeverity = Math.round(severity * 100) / 100
+        if (roundedSeverity >= 0.5) return "Severe"
+        if (roundedSeverity >= 0.3) return "Moderate"
+        return "Low"
+      }
+
+      const getSeverityColorClass = (severity: number): string => {
+        const roundedSeverity = Math.round(severity * 100) / 100
+        if (roundedSeverity >= 0.5) return "text-red-500"
+        if (roundedSeverity >= 0.3) return "text-yellow-500"
+        return "text-green-500"
+      }
+
+      const formatDateTime = (isoString: string): string => {
+        try {
+          const date = new Date(isoString)
+          return date.toLocaleString()
+        } catch (error) {
+          console.error("Error formatting date:", error)
+          return isoString
+        }
+      }
+
+      // Create popup content
+      const popupContent = document.createElement("div")
+      popupContent.className = "p-3 max-w-xs text-black"
+
+      // Add image if available
+      if (defect.imageUrl) {
+        const imageContainer = document.createElement("div")
+        imageContainer.className = "mb-3 cursor-pointer"
+
+        const image = document.createElement("img")
+        image.className = "w-full h-auto rounded hover:opacity-90 transition-opacity"
+        image.style.maxWidth = "250px"
+        image.style.maxHeight = "180px"
+        image.alt = "Defect image"
+        image.crossOrigin = "anonymous"
+        image.loading = "lazy"
+        image.src = defect.imageUrl
+
+        // Add click handler for image preview
+        image.onclick = (e: MouseEvent) => {
+          e.stopPropagation()
+          setPreviewImage({ url: defect.imageUrl, isOpen: true })
+        }
+
+        imageContainer.appendChild(image)
+        popupContent.appendChild(imageContainer)
+      }
+
+      // Add defect information
+      const title = document.createElement("h3")
+      title.className = "font-semibold text-sm mb-2 text-black flex items-center gap-2"
+      title.textContent = `${defect.metadata.DominantDefectType}`
+
+      const severitySpan = document.createElement("span")
+      const severityText = formatSeverityLevel(defect.metadata.SeverityLevel)
+      const severityColor = getSeverityColorClass(defect.metadata.SeverityLevel)
+      severitySpan.className = `px-2 py-0.5 rounded text-xs font-medium ${severityColor} bg-opacity-10`
+      severitySpan.style.backgroundColor = severityColor === "text-red-500" ? "#fee2e2" : 
+                                        severityColor === "text-yellow-500" ? "#fef3c7" : 
+                                        "#dcfce7"
+      severitySpan.textContent = `${severityText} (${(defect.metadata.SeverityLevel * 100).toFixed(1)}%)`
+      title.appendChild(severitySpan)
+
+      const infoContainer = document.createElement("div")
+      infoContainer.className = "space-y-1 text-xs text-black"
+
+      // Add timestamp
+      const timestamp = document.createElement("p")
+      timestamp.innerHTML = `<span class="font-medium">Detected:</span> ${formatDateTime(defect.metadata.ProcessingTimestamp)}`
+      infoContainer.appendChild(timestamp)
+
+      // Add severity level with percentage
+      const severityInfo = document.createElement("p")
+      severityInfo.innerHTML = `<span class="font-medium">Severity:</span> ${severityText} (${(defect.metadata.SeverityLevel * 100).toFixed(1)}%)`
+      infoContainer.appendChild(severityInfo)
+
+      // Add defect counts
+      const defectsList = document.createElement("p")
+      defectsList.innerHTML = `<span class="font-medium">Defects:</span> ${formatDefectCounts(defect.metadata.DefectCounts)}`
+      infoContainer.appendChild(defectsList)
+
+      // Add repair probability
+      const repairProb = document.createElement("p")
+      repairProb.innerHTML = `<span class="font-medium">Repair Probability:</span> ${defect.metadata.RepairProbability === 1 ? "Yes" : "No"}`
+      infoContainer.appendChild(repairProb)
+
+      // Add dimensions
+      const dimensions = document.createElement("p")
+      dimensions.innerHTML = `<span class="font-medium">Size:</span> ${defect.metadata.AverageLength.toFixed(1)} × ${defect.metadata.AverageWidth.toFixed(1)} cm`
+      infoContainer.appendChild(dimensions)
+
+      // Add area
+      const area = document.createElement("p")
+      area.innerHTML = `<span class="font-medium">Area:</span> ${defect.metadata.RealWorldArea.toFixed(2)} m²`
+      infoContainer.appendChild(area)
+
+      popupContent.appendChild(title)
+      popupContent.appendChild(infoContainer)
+
+      // Create popup
+      const popup = new mapboxgl.Popup({ 
+        offset: 25,
+        closeButton: false,
+        closeOnClick: false
+      }).setDOMContent(popupContent)
+
+      // Add popup to map
+      popup.setLngLat(coordinates).addTo(map.current!)
+      openPopupsRef.current.add(popup)
+    }
+
+    mouseEnterHandlerRef.current = () => {
+      if (map.current) {
+        map.current.getCanvas().style.cursor = 'pointer'
+      }
+    }
+
+    mouseLeaveHandlerRef.current = () => {
+      if (map.current) {
+        map.current.getCanvas().style.cursor = ''
+      }
+    }
+
+    map.current.on('click', 'unclustered-point', clickHandlerRef.current)
+    map.current.on('mouseenter', 'unclustered-point', mouseEnterHandlerRef.current)
+    map.current.on('mouseleave', 'unclustered-point', mouseLeaveHandlerRef.current)
+
+    // Handle zoom changes
+    map.current.on('zoom', () => {
+      const zoom = map.current?.getZoom() || 13
+      setCurrentZoom(zoom)
+      if (zoom < 14) {
+        setLoadingClusters(false)
+      }
+    })
+  }, [defects, formatDefectCounts, _selectedDefectType])
+
+  // Show loading state when zooming in
+  useEffect(() => {
+    if (currentZoom >= 14) {
+      setLoadingClusters(true)
+      const timer = setTimeout(() => {
+        setLoadingClusters(false)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [currentZoom])
 
   return (
     <div className="relative w-full h-full">
+      <div ref={mapContainer} className="w-full h-full" />
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
           <Loader />
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full" />
-
-      {/* Loading defects popup */}
       {!defectsLoaded && !loading && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <div className="bg-white/90 px-6 py-4 rounded-lg shadow-lg flex flex-col items-center gap-3">
@@ -427,8 +661,14 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
           </div>
         </div>
       )}
-
-      {/* Image preview modal */}
+      {loadingClusters && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="bg-white/90 px-6 py-4 rounded-lg shadow-lg flex flex-col items-center gap-3">
+            <Loader />
+            <p className="text-sm text-gray-600">Loading defects in this area...</p>
+          </div>
+        </div>
+      )}
       {previewImage.isOpen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setPreviewImage({ url: "", isOpen: false })}>
           <div className="relative max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
@@ -448,7 +688,6 @@ const MapComponent = forwardRef<{ flyToDefect: (defect: DefectDetection) => void
           </div>
         </div>
       )}
-
       {/* Last updated indicator */}
       <div className="absolute bottom-6 right-4 text-black bg-white/90 px-3 py-1 rounded-md text-xs shadow-md">
         {lastUpdated ? (
