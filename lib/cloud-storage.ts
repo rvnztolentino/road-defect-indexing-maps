@@ -237,7 +237,7 @@ class CloudStorage {
    * Get all defect detections with metadata and signed URLs
    * @param limit Maximum number of detections to return
    */
-  public async getAllDetections(limit = 500): Promise<DefectDetection[]> {
+  public async getAllDetections(limit = 300): Promise<DefectDetection[]> {
     const isReady = await this.isReady()
     if (!isReady) {
       this.logger.warn("Cloud storage not ready - cannot get detections")
