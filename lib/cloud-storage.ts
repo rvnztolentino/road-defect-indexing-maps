@@ -236,7 +236,7 @@ class CloudStorage {
   /**
    * Get all defect detections with metadata and signed URLs
    */
-  public async getAllDetections(limit = 100): Promise<DefectDetection[]> {
+  public async getAllDetections(limit = 1000): Promise<DefectDetection[]> {
     const isReady = await this.isReady()
     if (!isReady) {
       this.logger.warn("Cloud storage not ready - cannot get detections")
@@ -250,7 +250,7 @@ class CloudStorage {
       const detections: DefectDetection[] = []
 
       // Process files in batches to avoid overwhelming the API
-      const batchSize = 10
+      const batchSize = 20 // Increased batch size for better performance
       for (let i = 0; i < limitedBlobNames.length; i += batchSize) {
         const batch = limitedBlobNames.slice(i, i + batchSize)
 
