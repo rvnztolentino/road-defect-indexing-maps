@@ -4,9 +4,9 @@ import { cloudStorage } from "@/lib/cloud-storage"
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const requestedLimit = Number.parseInt(searchParams.get("limit") || "1000", 10)
-    // Set a maximum limit of 2000 to prevent timeout
-    const limit = Math.min(requestedLimit, 2000)
+    const requestedLimit = Number.parseInt(searchParams.get("limit") || "800", 10)
+    // Set a maximum limit to prevent timeout
+    const limit = Math.min(requestedLimit, 1000)
     const since = searchParams.get("since") // ISO timestamp to get only newer detections
 
     console.log('Fetching defects with limit:', limit)
