@@ -136,7 +136,7 @@ class CloudStorage {
       const folderPath = this.settings.folderPath.replace(/\/$/, "")
       const [files] = await this.bucket.getFiles({
         prefix: folderPath,
-        maxResults: 300, // Set limit
+        maxResults: 700, // Set limit
       })
 
       // Filter for JSON files
